@@ -21,7 +21,7 @@ In alphabetic order:
 * [Bash](https://www.gnu.org/software/bash/manual/bash.html): The shell, or command language interpreter, for the GNU operating system — _for building and deploying_
 * [AxonServer](https://axoniq.io/product-overview/axon-server): A zero-configuration message router and event store for Axon ([docker image](https://hub.docker.com/r/axoniq/axonserver/)) — _Event Store_
 * [Docker compose](https://docs.docker.com/compose/): A tool for defining and running multi-container Docker applications — _for spinning up development and test environments_
-* [ElasticSearch](https://www.elastic.co/elasticsearch/) You know, for search — _for query models (though any tokio-compatible persistence engine will do)_
+* [ElasticSearch](https://www.elastic.co/elasticsearch/) You know, for search ([docker image](https://hub.docker.com/_/elasticsearch)) — _for query models (though any tokio-compatible persistence engine will do)_
 * [Envoy proxy](https://www.envoyproxy.io/): An open source edge and service proxy, designed for cloud-native applications ([docker image](https://hub.docker.com/u/envoyproxy/)) — _to decouple microservices_
 * [React](https://reactjs.org/): A JavaScript library for building user interfaces — _for the front-end_
 * [Rust](https://www.rust-lang.org): A language empowering everyone to build reliable and efficient software — _for the back-end_
