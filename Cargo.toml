@@ -10,7 +10,7 @@ repository = "https://github.com/dendrite2go/rustic-dendrite"
 license-file = "LICENSE"
 keywords = ["event-sourcing", "CQRS", "AxonServer"]
 categories = ["web-programming"]
-include = ["src/**/*", "proto/**/*", "Cargo.*", "build.rs", "README.md", "LICENSE"]
+include = ["/src/**/*", "/proto/**/*", "/Cargo.*", "/build.rs", "/README.md", "/LICENSE"]
 
 [dependencies]
 anyhow = "1.0"
