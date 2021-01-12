@@ -29,9 +29,9 @@ services:
     image: rust:latest
     working_dir: ${PROJECT}/target
     command:
-      - "debug/rustic-dendrite"
+      - "debug/dendrite"
     environment:
-      - "RUST_LOG=info,rustic_dendrite=debug"
+      - "RUST_LOG=info,dendrite=debug"
       - "RUST_BACKTRACE=1"
     init: true
     hostname: ${ENSEMBLE_NAME}
