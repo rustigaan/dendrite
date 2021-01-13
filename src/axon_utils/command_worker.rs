@@ -20,25 +20,18 @@ use crate::axon_server::event::{Event,ReadHighestSequenceNrRequest};
 use crate::axon_server::event::event_store_client::EventStoreClient;
 use std::fmt::Debug;
 
-pub fn emit_events() -> EmitEventsAndResponse {
-    EmitEventsAndResponse {
+/// Creates a struct that can be returned by a command handler to supply the events that have
+/// to be emitted.
+pub fn emit_events() -> EmitApplicableEventsAndResponse<()> {
+    EmitApplicableEventsAndResponse {
         events: Vec::new(),
         response: None,
     }
 }
 
-pub fn emit_events_and_response<T: Message>(
-    type_name: &str,
-    response: &T
-) -> Result<EmitEventsAndResponse> {
-    let payload = axon_serialize(type_name, response)?;
-    Ok(EmitEventsAndResponse {
-        events: Vec::new(),
-        response: Some(payload),
-    })
-}
-
-pub fn emit_applicable_events_and_response<T: Message, P: VecU8Message + Send + Clone>(
+/// Creates a struct that can be returned by a command handler to supply both the events that have
+/// to be emitted and the response to the caller.
+pub fn emit_events_and_response<T: Message, P: VecU8Message + Send + Clone>(
     type_name: &str,
     response: &T
 ) -> Result<EmitApplicableEventsAndResponse<P>> {
@@ -49,12 +42,18 @@ pub fn emit_applicable_events_and_response<T: Message, P: VecU8Message + Send + 
     })
 }
 
+/// Struct that can be returned by a command handler to supply both the events that have
+/// to be emitted and the response to the caller.
 #[derive(Clone,Debug)]
 pub struct EmitEventsAndResponse {
     events: Vec<SerializedObject>,
     response: Option<SerializedObject>,
 }
 
+/// Struct that can be returned by a command handler to supply both the events that have
+/// to be emitted and the response to the caller.
+///
+/// The events have to be applicable to the projection type.
 #[derive(Debug)]
 pub struct EmitApplicableEventsAndResponse<P> {
     events: Vec<(String,Box<dyn ApplicableTo<P>>)>,
@@ -75,12 +74,14 @@ impl<P> Clone for EmitApplicableEventsAndResponse<P> {
     }
 }
 
+/// Trait that needs to be implemented by the aggregate registry.
 pub trait AggregateRegistry {
     fn insert(&mut self, aggregate_handle: Box<dyn AggregateHandle>) -> Result<()>;
     fn get(&self, name: &str) -> Option<&Box<dyn AggregateHandle>>;
     fn register(&self, commands: &mut Vec<String>, command_to_aggregate_mapping: &mut HashMap<String,String>);
 }
 
+/// Concrete struct that implements `AggregateRegistry`.
 pub struct TheAggregateRegistry {
     pub handlers: HashMap<String,Box<dyn AggregateHandle>>,
 }
@@ -106,6 +107,7 @@ impl AggregateRegistry for TheAggregateRegistry {
     }
 }
 
+/// Creates an empty aggregate registry that can be populated with `AggregateHandle`s (most likely: `AggregateDefinition`s).
 pub fn empty_aggregate_registry() -> TheAggregateRegistry {
     TheAggregateRegistry {
         handlers: HashMap::new(),
@@ -136,6 +138,14 @@ impl<P: VecU8Message + Send + Clone + std::fmt::Debug + 'static> AggregateHandle
     }
 }
 
+/// The complete definition of an aggregate.
+///
+/// Fields:
+/// * `projection_name`: The name of the aggregate type.
+/// * `empty_projection`: Factory method for an empty projection.
+/// * `aggregate_id_extractor_registry`: Registry that assigns a handler that extracts the aggregate identifier from a command or command result.
+/// * `command_handler_registry`: Registry that assigns a handler for each command.
+/// * `command_handler_registry`: Registry that assigns a handler for each event that updates the projection.
 pub struct AggregateDefinition<P: VecU8Message + Send + Clone + 'static> {
     pub projection_name: String,
     empty_projection: Box<dyn Fn() -> P + Send + Sync>,
@@ -144,6 +154,7 @@ pub struct AggregateDefinition<P: VecU8Message + Send + Clone + 'static> {
     sourcing_handler_registry: TheHandlerRegistry<P,P>,
 }
 
+/// Creates a new aggregate definition as needed by function `command_worker`.
 pub fn create_aggregate_definition<P: VecU8Message + Send + Clone>(
     projection_name: String,
     empty_projection: Box<dyn Fn() -> P + Send + Sync>,
@@ -213,13 +224,8 @@ async fn handle_command<P: VecU8Message + Send + Clone + std::fmt::Debug + 'stat
     Err(anyhow!("Missing aggregate identifier"))
 }
 
-pub fn emit<T: Message>(holder: &mut EmitEventsAndResponse, type_name: &str, event: &T) -> Result<()> {
-    let payload = axon_serialize(type_name, event)?;
-    holder.events.push(payload);
-    Ok(())
-}
-
-pub fn emit_applicable<P: VecU8Message + Send + Clone>(holder: &mut EmitApplicableEventsAndResponse<P>, type_name: &str, event: Box<dyn ApplicableTo<P>>) -> Result<()> {
+/// Adds an event that can be applied to the command projection to be emitted to the result of a command handler.
+pub fn emit<P: VecU8Message + Send + Clone>(holder: &mut EmitApplicableEventsAndResponse<P>, type_name: &str, event: Box<dyn ApplicableTo<P>>) -> Result<()> {
     holder.events.push((type_name.to_string(), event));
     Ok(())
 }
@@ -230,6 +236,7 @@ struct AxonCommandResult {
     result: Result<Option<EmitEventsAndResponse>>,
 }
 
+/// Subscribes  to commands, verifies them against the command projection and sends emitted events to AxonServer.
 pub async fn command_worker(
     axon_connection: AxonConnection,
     aggregate_registry: TheAggregateRegistry

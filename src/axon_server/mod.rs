@@ -1,3 +1,7 @@
+//! Generated from `proto/axon_server/*.proto` using `prost`.
+//!
+//! This module contains a Rust implementation of the AxonSever.
+
 tonic::include_proto!("io.axoniq.axonserver.grpc");
 pub mod command {
     tonic::include_proto!("io.axoniq.axonserver.grpc.command");

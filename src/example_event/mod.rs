@@ -45,6 +45,9 @@ impl TokenStore for ExampleQueryModel {
     }
 }
 
+/// Handles events for the example application.
+///
+/// Constructs an event handler registry and delegates to function `event_processor`.
 pub async fn process_events(axon_server_handle : AxonServerHandle) {
     if let Err(e) = internal_process_events(axon_server_handle).await {
         error!("Error while handling commands: {:?}", e);

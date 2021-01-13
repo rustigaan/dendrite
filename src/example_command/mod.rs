@@ -1,9 +1,12 @@
 use anyhow::{Context,Result,anyhow};
 use log::{debug,error};
 use prost::{Message};
-use crate::axon_utils::{ApplicableTo, AxonConnection, AxonServerHandle, EmitApplicableEventsAndResponse, HandlerRegistry, command_worker, create_aggregate_definition, emit_applicable, emit_applicable_events_and_response, empty_handler_registry, empty_aggregate_registry};
+use crate::axon_utils::{ApplicableTo, AxonConnection, AxonServerHandle, EmitApplicableEventsAndResponse, HandlerRegistry, command_worker, create_aggregate_definition, emit, emit_events_and_response, empty_handler_registry, empty_aggregate_registry};
 use crate::grpc_example::{Acknowledgement,GreetCommand,GreetedEvent,GreeterProjection,RecordCommand,StartedRecordingEvent,StopCommand,StoppedRecordingEvent};
 
+/// Handles commands for the example application.
+///
+/// Constructs an aggregate registry and delegates to function `command_worker`.
 pub async fn handle_commands(axon_server_handle : AxonServerHandle) {
     if let Err(e) = internal_handle_commands(axon_server_handle).await {
         error!("Error while handling commands: {:?}", e);
@@ -157,10 +160,10 @@ async fn handle_greet_command (command: GreetCommand, projection: GreeterProject
     if message == "ERROR" {
         return Err(anyhow!("Panicked at reading 'ERROR'"));
     }
-    let mut emit_events = emit_applicable_events_and_response("Acknowledgement", &Acknowledgement {
+    let mut emit_events = emit_events_and_response("Acknowledgement", &Acknowledgement {
         message: format!("ACK! {}", message),
     })?;
-    emit_applicable(&mut emit_events, "GreetedEvent", Box::from(GreetedEvent {
+    emit(&mut emit_events, "GreetedEvent", Box::from(GreetedEvent {
         message: greeting,
     }))?;
     debug!("Emit events and response: {:?}", emit_events);
@@ -172,8 +175,8 @@ async fn handle_record_command (command: RecordCommand, projection: GreeterProje
     if projection.is_recording {
         return Ok(None)
     }
-    let mut emit_events = emit_applicable_events_and_response("Empty", &())?;
-    emit_applicable(&mut emit_events, "StartedRecordingEvent", Box::from(StartedRecordingEvent {}))?;
+    let mut emit_events = emit_events_and_response("Empty", &())?;
+    emit(&mut emit_events, "StartedRecordingEvent", Box::from(StartedRecordingEvent {}))?;
     Ok(Some(emit_events))
 }
 
@@ -182,7 +185,7 @@ async fn handle_stop_command (command: StopCommand, projection: GreeterProjectio
     if !projection.is_recording {
         return Ok(None)
     }
-    let mut emit_events = emit_applicable_events_and_response("Empty", &())?;
-    emit_applicable(&mut emit_events, "StoppedRecordingEvent", Box::from(StoppedRecordingEvent {}))?;
+    let mut emit_events = emit_events_and_response("Empty", &())?;
+    emit(&mut emit_events, "StoppedRecordingEvent", Box::from(StoppedRecordingEvent {}))?;
     Ok(Some(emit_events))
 }

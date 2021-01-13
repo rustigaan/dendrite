@@ -5,6 +5,7 @@ use futures_util::__private::Pin;
 use prost::DecodeError;
 use std::collections::HashMap;
 
+/// Describes a registry for handlers for a particular type projection (or context) and a particular return type.
 // I tried to make it possible to pass an `async fn` directly to parameter `handler`, but the return
 // type after desugaring is unnameable
 // (https://internals.rust-lang.org/t/naming-the-return-type-of-an-async-function/10085).
@@ -50,6 +51,7 @@ pub trait HandlerRegistry<P,W>: Send {
     fn get(&self, name: &str) -> Option<&Box<dyn SubscriptionHandle<P,W>>>;
 }
 
+/// Concrete struct that implements the `HandlerRegistry` trait.
 pub struct TheHandlerRegistry<P: Send,W: Clone> {
     pub handlers: HashMap<String,Box<dyn SubscriptionHandle<P,W>>>,
 }
@@ -151,6 +153,7 @@ impl<P: Send + Clone, W: Clone + 'static> HandlerRegistry<P,W> for TheHandlerReg
     }
 }
 
+/// Creates an empty handler registry for a type of projection and a type of return values that can be populated with SubscriptionHandles.
 pub fn empty_handler_registry<P: Send, W: Clone>() -> TheHandlerRegistry<P,W> {
     TheHandlerRegistry {
         handlers: HashMap::new(),

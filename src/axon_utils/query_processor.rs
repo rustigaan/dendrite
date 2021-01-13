@@ -13,20 +13,24 @@ use crate::axon_server::query::{QueryProviderOutbound,query_provider_inbound,que
 use crate::axon_server::query::query_service_client::QueryServiceClient;
 use crate::axon_utils::AxonServerHandle;
 
+/// Marker trait that describes the context for a query handler.
 pub trait QueryContext {
 }
 
+/// Carries the result of a query from handler to processor.
 #[derive(Debug,Clone)]
 pub struct QueryResult {
     pub payload: Option<SerializedObject>,
 }
 
+/// Carries the result of a query from the query processor th the output stream.
 #[derive(Debug)]
 struct AxonQueryResult {
     message_identifier: String,
     result: Option<SerializedObject>,
 }
 
+/// Subscribes to queries, executes them against a query model and pass back the results.
 pub async fn query_processor<Q: QueryContext + Send + Sync + Clone>(
     axon_server_handle: AxonServerHandle,
     query_context: Q,

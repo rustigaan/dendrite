@@ -4,6 +4,7 @@ use crate::axon_server::event::{Event,GetAggregateEventsRequest};
 use crate::axon_server::event::event_store_client::EventStoreClient;
 use super::AxonServerHandle;
 
+/// Fetch all events for a given aggregate.
 pub async fn query_events(axon_server_handle: &AxonServerHandle, aggregate_identifier: &str) -> Result<Vec<Event>> {
     let axon_server_handle = axon_server_handle.clone();
     let conn = axon_server_handle.conn;
@@ -11,6 +12,7 @@ pub async fn query_events(axon_server_handle: &AxonServerHandle, aggregate_ident
     query_events_from_client(&mut client, aggregate_identifier).await
 }
 
+/// Fetch all events for a given aggregate.
 pub async fn query_events_from_client(client: &mut EventStoreClient<Channel>, aggregate_identifier: &str) -> Result<Vec<Event>> {
     let request = GetAggregateEventsRequest {
         aggregate_id: aggregate_identifier.to_string(),

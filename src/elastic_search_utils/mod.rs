@@ -1,3 +1,8 @@
+//! # Elastic Search utilities
+//!
+//! Module `elastic_search_utils` exports helper functions that facilitate storing Query Models in
+//! Elastic Search.
+
 use anyhow::Result;
 use elasticsearch::Elasticsearch;
 use elasticsearch::http::transport::Transport;
@@ -7,6 +12,7 @@ use std::time;
 use tokio::time::delay_for;
 use elasticsearch::cluster::ClusterStatsParts;
 
+/// Polls ElasticSearch until it is available and ready.
 pub async fn wait_for_elastic_search() -> Result<Elasticsearch> {
     let interval = time::Duration::from_secs(1);
     loop {

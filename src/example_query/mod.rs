@@ -13,6 +13,9 @@ struct ExampleQueryContext {
 
 impl QueryContext for ExampleQueryContext {}
 
+/// Handles queries for the example application.
+///
+/// Constructs an query handler registry and delegates to function `query_processor`.
 pub async fn process_queries(axon_server_handle : AxonServerHandle) {
     if let Err(e) = internal_process_queries(axon_server_handle).await {
         error!("Error while handling queries: {:?}", e);

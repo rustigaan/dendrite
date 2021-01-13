@@ -8,6 +8,7 @@ use crate::axon_server::SerializedObject;
 use crate::axon_server::command::Command;
 use crate::axon_server::command::command_service_client::CommandServiceClient;
 
+/// Polls AxonServer until it is available and ready.
 pub async fn init() -> Result<AxonServerHandle> {
     let axon_connection = wait_for_server("proxy", 8124, "API").await.unwrap();
     debug!("Axon connection: {:?}", axon_connection);

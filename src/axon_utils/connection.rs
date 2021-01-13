@@ -10,6 +10,7 @@ use super::AxonConnection;
 use crate::axon_server::control::ClientIdentification;
 use crate::axon_server::control::platform_service_client::PlatformServiceClient;
 
+/// Polls AxonServer until it is available and ready.
 pub async fn wait_for_server(host: &str, port: u32, label: &str) -> Result<AxonConnection> {
     let url = format!("http://{}:{}", host, port);
     let conn = wait_for_connection(&url, label).await;

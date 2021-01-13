@@ -1,13 +1,13 @@
 [package]
 name = "dendrite"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["Jeroen van Maanen"]
 edition = "2018"
 description = "Event Sourcing and CQRS in Rust with AxonServer."
 readme = "README.md"
 homepage = "https://github.com/dendrite2go/rustic-dendrite"
 repository = "https://github.com/dendrite2go/rustic-dendrite"
-license-file = "LICENSE"
+license = "MIT"
 keywords = ["event-sourcing", "CQRS", "AxonServer"]
 categories = ["web-programming"]
 include = ["/src/**/*", "/proto/**/*", "/Cargo.*", "/build.rs", "/README.md", "/LICENSE"]

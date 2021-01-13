@@ -8,6 +8,9 @@ use crate::axon_utils::{AxonServerHandle, CommandSink, QuerySink, init_command_s
 use crate::grpc_example::greeter_service_server::GreeterService;
 use crate::grpc_example::{Acknowledgement, Empty, GreetedEvent, Greeting, GreetCommand, RecordCommand, StopCommand, SearchQuery, SearchResponse};
 
+/// Carries an `AxonServerHandle` and implements the `prost` generated `GreeterService`.
+///
+/// The implementation uses implementations of `CommandSink` and `QuerySink` to send commands and queries to AxonServer.
 #[derive(Debug)]
 pub struct GreeterServer {
     pub axon_server_handle: AxonServerHandle,
@@ -131,6 +134,7 @@ impl GreeterService for GreeterServer {
     }
 }
 
+/// Initialises a `GreeterServer`.
 pub async fn init() -> Result<GreeterServer> {
     init_command_sender().await.map(|command_sink| {GreeterServer{ axon_server_handle: command_sink }})
 }

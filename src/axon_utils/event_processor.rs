@@ -13,12 +13,18 @@ struct AxonEventProcessed {
     message_identifier: String,
 }
 
+/// Describes a token store.
+///
+/// A token store can be used to persist markers that indicate the last processed event for each event processor.
 #[tonic::async_trait]
 pub trait TokenStore {
     async fn store_token(&self, token: i64);
     async fn retrieve_token(&self) -> Result<i64>;
 }
 
+/// Subscribes to events and builds a query model from them.
+///
+/// There are likely to be multiple query models for a single application.
 pub async fn event_processor<Q: TokenStore + Send + Sync + Clone>(
     axon_server_handle: AxonServerHandle,
     query_model: Q,
