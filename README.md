@@ -2,7 +2,9 @@
 
 A [Rust](https://www.rust-lang.org) library to connect to [AxonServer](https://axoniq.io/product-overview/axon-server).
 
-This project is a sibling of [dendrite2go](https://github.com/dendrite2go) and [archetype-go-axon](https://github.com/dendrite2go/archetype-go-axon), but for the Rust programming language.
+This project is a sibling of [dendrite2go](https://github.com/dendrite2go/dendrite) and [archetype-go-axon](https://github.com/dendrite2go/archetype-go-axon), but for the Rust programming language.
+
+See the GitHub project [dendrite2go/archetype-rust-axon](https://github.com/dendrite2go/archetype-rust-axon) for an example of how to use this code.
 
 # Core concepts
 
@@ -13,19 +15,6 @@ This project is a sibling of [dendrite2go](https://github.com/dendrite2go) and [
 * [gRPC](https://grpc.io/)
 * [Microservices](https://en.wikipedia.org/wiki/Microservices)
 * [Service Mesh](https://buoyant.io/2017/04/25/whats-a-service-mesh-and-why-do-i-need-one/) (video: [talk by Jeroen Reijn](https://2019.jfall.nl/sessions/whats-a-service-mesh-and-why-do-i-need-one/))
-
-# Stack
-
-In alphabetic order:
-
-* [Bash](https://www.gnu.org/software/bash/manual/bash.html): The shell, or command language interpreter, for the GNU operating system — _for building and deploying_
-* [AxonServer](https://axoniq.io/product-overview/axon-server): A zero-configuration message router and event store for Axon ([docker image](https://hub.docker.com/r/axoniq/axonserver/)) — _Event Store_
-* [Docker compose](https://docs.docker.com/compose/): A tool for defining and running multi-container Docker applications — _for spinning up development and test environments_
-* [ElasticSearch](https://www.elastic.co/elasticsearch/) You know, for search ([docker image](https://hub.docker.com/_/elasticsearch)) — _for query models (though any tokio-compatible persistence engine will do)_
-* [Envoy proxy](https://www.envoyproxy.io/): An open source edge and service proxy, designed for cloud-native applications ([docker image](https://hub.docker.com/u/envoyproxy/)) — _to decouple microservices_
-* [React](https://reactjs.org/): A JavaScript library for building user interfaces — _for the front-end_
-* [Rust](https://www.rust-lang.org): A language empowering everyone to build reliable and efficient software — _for the back-end_
-* [Tonic](https://github.com/hyperium/tonic): A Rust implementation of [gRPC](https://grpc.io/) with first class support of async/await — _for the plumbing on the back-end_
 
 ## Status
 
@@ -44,9 +33,7 @@ This project has now reached the level of Minimal Viable Deliverable in the sens
 8. ☑ Register a query handler and handle queries
    * ☑ Show query results in UI
 
-The next task is to split off the example project from the library, and publish the library on [crates.io](https://crates.io/).
-
-After that:
+Now it would be nice to:
 
 * Add macros to make the definition of handlers more ergonomic
 * Add in-memory caching of aggregate projections
