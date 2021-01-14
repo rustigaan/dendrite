@@ -145,7 +145,7 @@ impl<P: VecU8Message + Send + Clone + std::fmt::Debug + 'static> AggregateHandle
 /// * `empty_projection`: Factory method for an empty projection.
 /// * `aggregate_id_extractor_registry`: Registry that assigns a handler that extracts the aggregate identifier from a command or command result.
 /// * `command_handler_registry`: Registry that assigns a handler for each command.
-/// * `command_handler_registry`: Registry that assigns a handler for each event that updates the projection.
+/// * `sourcing_handler_registry`: Registry that assigns a handler for each event that updates the projection.
 pub struct AggregateDefinition<P: VecU8Message + Send + Clone + 'static> {
     pub projection_name: String,
     empty_projection: Box<dyn Fn() -> P + Send + Sync>,
