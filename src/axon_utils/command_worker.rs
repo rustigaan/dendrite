@@ -156,7 +156,7 @@ impl<P: VecU8Message + Send + Sync + Clone + std::fmt::Debug + 'static> Aggregat
 /// * `sourcing_handler_registry`: Registry that assigns a handler for each event that updates the projection.
 pub struct AggregateDefinition<P: VecU8Message + Send + Sync + Clone + 'static> {
     pub projection_name: String,
-    cache: Arc<LruCache<String,P>>,
+    cache: Arc<LruCache<String,(i64,P)>>,
     empty_projection: Box<dyn Fn() -> P + Send + Sync>,
     aggregate_id_extractor_registry: TheHandlerRegistry<(),String>,
     command_handler_registry: TheHandlerRegistry<P,EmitApplicableEventsAndResponse<P>>,
@@ -193,22 +193,32 @@ async fn handle_command<P: VecU8Message + Send + Sync + Clone + std::fmt::Debug 
 
     let handler = aggregate_definition.command_handler_registry.get(&command.name).ok_or(anyhow!("No handler for: {:?}", command.name))?;
     let mut projection = (aggregate_definition.empty_projection)();
-
-    // TODO: try to get projection from cache
+    let mut seq: i64 = -1;
 
     if let Some(aggregate_id) = &aggregate_id {
-        let events = query_events_from_client(client, &aggregate_id).await?;
-        for event in events {
-            debug!("Replaying event: {:?}", event);
-            if let Some(payload) = event.payload {
-                let sourcing_handler = aggregate_definition.sourcing_handler_registry.get(&payload.r#type).ok_or(anyhow!("Missing sourcing handler for {:?}", payload.r#type))?;
-                if let Some(p) = (sourcing_handler).handle(payload.data, projection.clone()).await? {
-                    projection = p;
-                }
+        if let Some(cache) = Arc::get_mut(&mut aggregate_definition.cache) {
+            if let Some((s, p)) = cache.get(aggregate_id) {
+                debug!("Cache hit: {:?}: {:?}", aggregate_id, s);
+                projection = p.clone();
+                seq = *s;
             }
         }
+        if seq < 0 {
+            let events = query_events_from_client(client, &aggregate_id).await?;
+            for event in events {
+                debug!("Replaying event: {:?}", event);
+                if let Some(payload) = event.payload {
+                    let sourcing_handler = aggregate_definition.sourcing_handler_registry.get(&payload.r#type).ok_or(anyhow!("Missing sourcing handler for {:?}", payload.r#type))?;
+                    if let Some(p) = (sourcing_handler).handle(payload.data, projection.clone()).await? {
+                        projection = p;
+                    }
+                }
+                seq = event.aggregate_sequence_number;
+            }
+            debug!("Restored projection: {:?}: {:?}", seq, &projection);
+        }
     }
-    debug!("Restored projection: {:?}", &projection);
+
     let result = handler.handle(data, projection.clone()).await?;
     if let (None,Some(EmitApplicableEventsAndResponse{ response: Some(r), ..})) = (&aggregate_id,result.as_ref()) {
         let response_type = r.r#type.clone();
@@ -217,7 +227,7 @@ async fn handle_command<P: VecU8Message + Send + Sync + Clone + std::fmt::Debug 
             aggregate_id = aggregate_id_extractor.handle(response_data, ()).await?
         }
     }
-    if let Some(aggregate_id) = aggregate_id {
+    if let Some(aggregate_id) = &aggregate_id {
 
         if let Some(result) = result.as_ref() {
             debug!("Emit events: {:?}", &result.events);
@@ -226,7 +236,7 @@ async fn handle_command<P: VecU8Message + Send + Sync + Clone + std::fmt::Debug 
             for (_, event) in &result.events {
                 event.apply_to(&mut projection)?;
             }
-            Arc::get_mut(&mut aggregate_definition.cache).map(|c| c.put(aggregate_id, projection));
+            Arc::get_mut(&mut aggregate_definition.cache).map(|c| c.put(aggregate_id.clone(), (seq, projection)));
         }
 
         let wrapped_result = result.map(
