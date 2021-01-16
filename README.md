@@ -9,17 +9,15 @@ See the GitHub project [dendrite2go/archetype-rust-axon](https://github.com/dend
 ## Core concepts
 
 * [Command / Query Responsibility Segregation](http://codebetter.com/gregyoung/2010/02/16/cqrs-task-based-uis-event-sourcing-agh/) (CQRS)
-* [Domain-driven Design](https://dddcommunity.org/learning-ddd/what_is_ddd/) (DDD)
 * [Event Sourcing](https://axoniq.io/resources/event-sourcing)
 * [Futures and async/await](https://rust-lang.github.io/async-book)
 * [gRPC](https://grpc.io/)
-* [Microservices](https://en.wikipedia.org/wiki/Microservices)
-* [Service Mesh](https://buoyant.io/2017/04/25/whats-a-service-mesh-and-why-do-i-need-one/) (video: [talk by Jeroen Reijn](https://2019.jfall.nl/sessions/whats-a-service-mesh-and-why-do-i-need-one/))
 
 ## More information
 
 * [dendrite on crates.io](https://crates.io/crates/dendrite)
 * [dendrite on docs.rs](https://docs.rs/dendrite)
+* [rustic-dendrite on GitHub](https://github.com/dendrite2go/rustic-dendrite)
 
 ## Status
 
