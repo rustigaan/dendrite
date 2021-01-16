@@ -23,7 +23,8 @@ See the GitHub project [dendrite2go/archetype-rust-axon](https://github.com/dend
 
 ## Status
 
-This project has now reached the level of Minimal Viable Deliverable in the sense that the first phase is completed: the current application communicates with AxonServer properly. Like [archetype-go-axon](https://github.com/dendrite2go/archetype-go-axon) it can do the following:
+This project has now reached the level of Minimal Viable Deliverable in the sense that the first phase is completed: the current application communicates with AxonServer properly.
+Like [archetype-go-axon](https://github.com/dendrite2go/archetype-go-axon) it can do the following:
 1. ☑ Set up a session with AxonServer
    * ☑ Enable React app to call a RPC endpoint on the example-command-api service through grpc-web
 2. ☑ Issue commands
@@ -38,10 +39,13 @@ This project has now reached the level of Minimal Viable Deliverable in the sens
 8. ☑ Register a query handler and handle queries
    * ☑ Show query results in UI
 
+As well as
+
+* In-memory caching of aggregate projections
+
 Now it would be nice to:
 
 * Add macros to make the definition of handlers more ergonomic
-* Add in-memory caching of aggregate projections
 * Add support for storing snapshots of aggregate projections in AxonServer.
 * Add support for segmentation to distribute the load on tracking event processors.
 * Add support for sagas.
