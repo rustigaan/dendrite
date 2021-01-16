@@ -19,7 +19,7 @@ use crate::axon_server::command::{CommandProviderOutbound,CommandResponse,Comman
 use crate::axon_server::command::{command_provider_inbound,Command};
 use crate::axon_server::command::command_provider_outbound;
 use crate::axon_server::command::command_service_client::CommandServiceClient;
-use crate::axon_server::event::{Event,ReadHighestSequenceNrRequest};
+use crate::axon_server::event::Event;
 use crate::axon_server::event::event_store_client::EventStoreClient;
 
 /// Creates a struct that can be returned by a command handler to supply the events that have
@@ -231,10 +231,11 @@ async fn handle_command<P: VecU8Message + Send + Sync + Clone + std::fmt::Debug 
 
         if let Some(result) = result.as_ref() {
             debug!("Emit events: {:?}", &result.events);
-            store_events(client, &aggregate_id, &result).await?;
+            store_events(client, &aggregate_id, &result, seq + 1).await?;
 
             for (_, event) in &result.events {
                 event.apply_to(&mut projection)?;
+                seq = seq + 1;
             }
             Arc::get_mut(&mut aggregate_definition.cache).map(|c| c.put(aggregate_id.clone(), (seq, projection)));
         }
@@ -416,13 +417,8 @@ fn create_output_stream(client_id: String, command_box: Box<Vec<String>>, mut rx
     }
 }
 
-async fn store_events<P: std::fmt::Debug>(client: &mut EventStoreClient<Channel>, aggregate_id: &str, events: &EmitApplicableEventsAndResponse<P>) -> Result<()>{
-    debug!("Client: {:?}: events: {:?}", client, events);
-    let request = ReadHighestSequenceNrRequest {
-        aggregate_id: aggregate_id.to_string(),
-        from_sequence_nr: 0,
-    };
-    let response = client.read_highest_sequence_nr(request).await?.into_inner();
+async fn store_events<P: std::fmt::Debug>(client: &mut EventStoreClient<Channel>, aggregate_id: &str, events: &EmitApplicableEventsAndResponse<P>, next_seq: i64) -> Result<()>{
+    debug!("Store events: Client: {:?}: events: {:?}", client, events);
 
     let message_identifier = Uuid::new_v4();
     let now = std::time::SystemTime::now();
@@ -440,7 +436,7 @@ async fn store_events<P: std::fmt::Debug>(client: &mut EventStoreClient<Channel>
             message_identifier: format!("{:?}", message_identifier.to_simple()),
             timestamp,
             aggregate_identifier: aggregate_id.to_string(),
-            aggregate_sequence_number: response.to_sequence_nr + 1,
+            aggregate_sequence_number: next_seq,
             aggregate_type: "Greeting".to_string(),
             payload: Some(e),
             meta_data: HashMap::new(),
