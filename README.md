@@ -39,7 +39,7 @@ Like [archetype-go-axon](https://github.com/dendrite2go/archetype-go-axon) it ca
 8. ☑ Register a query handler and handle queries
    * ☑ Show query results in UI
 
-As well as
+As well as:
 
 * In-memory caching of aggregate projections
 
