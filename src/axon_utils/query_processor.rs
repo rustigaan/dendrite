@@ -47,7 +47,7 @@ pub async fn query_processor<Q: QueryContext + Send + Sync + Clone>(
     }
     let query_box = Box::new(query_vec);
 
-    let (mut tx, rx): (Sender<AxonQueryResult>, Receiver<AxonQueryResult>) = channel(10);
+    let (tx, rx): (Sender<AxonQueryResult>, Receiver<AxonQueryResult>) = channel(10);
 
     let outbound = create_output_stream(client_id, query_box, rx);
 

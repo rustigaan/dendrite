@@ -1,7 +1,7 @@
 use anyhow::Result;
 use log::debug;
 use std::time;
-use tokio::time::delay_for;
+use tokio::time::sleep;
 use tonic;
 use tonic::Request;
 use tonic::transport::Channel;
@@ -29,7 +29,7 @@ async fn wait_for_connection(url: &str, label: &str) -> Channel {
         if let Some(conn)= try_to_connect(url, label).await {
             return conn;
         }
-        delay_for(interval).await;
+        sleep(interval).await;
         continue;
     }
 }

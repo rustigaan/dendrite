@@ -33,7 +33,7 @@ pub async fn event_processor<Q: TokenStore + Send + Sync + Clone>(
     let conn = axon_server_handle.conn;
     let mut client = EventStoreClient::new(conn);
 
-    let (mut tx, rx): (Sender<AxonEventProcessed>, Receiver<AxonEventProcessed>) = channel(10);
+    let (tx, rx): (Sender<AxonEventProcessed>, Receiver<AxonEventProcessed>) = channel(10);
 
     let initial_token = query_model.retrieve_token().await.unwrap_or(-1) + 1;
     debug!("Initial token: {:?}", initial_token);

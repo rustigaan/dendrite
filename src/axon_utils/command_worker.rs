@@ -281,7 +281,7 @@ pub async fn command_worker(
     aggregate_registry.register(&mut command_vec, &mut command_to_aggregate_mapping);
     let command_box = Box::new(command_vec);
 
-    let (mut tx, rx): (Sender<AxonCommandResult>, Receiver<AxonCommandResult>) = channel(10);
+    let (tx, rx): (Sender<AxonCommandResult>, Receiver<AxonCommandResult>) = channel(10);
 
     let outbound = create_output_stream(client_id, command_box, rx);
 
