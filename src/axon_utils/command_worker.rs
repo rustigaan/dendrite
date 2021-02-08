@@ -14,6 +14,7 @@ use uuid::Uuid;
 use super::{ApplicableTo, AxonConnection, VecU8Message, axon_serialize};
 use super::event_query::query_events_from_client;
 use super::handler_registry::{HandlerRegistry,TheHandlerRegistry};
+use super::handler_registry_mut::{HandlerRegistryMut,TheHandlerRegistryMut};
 use crate::axon_server::{ErrorMessage,FlowControl,SerializedObject};
 use crate::axon_server::command::{CommandProviderOutbound,CommandResponse,CommandSubscription};
 use crate::axon_server::command::{command_provider_inbound,Command};
@@ -42,6 +43,37 @@ pub fn emit_events_and_response<T: Message, P: VecU8Message + Send + Clone>(
         events: Vec::new(),
         response: Some(payload),
     })
+}
+
+#[derive(Debug)]
+pub struct AggregateContext<P: VecU8Message + Send + Sync + Clone> {
+    events: Vec<(String,Box<dyn ApplicableTo<P>>)>,
+    aggregate_id: Option<String>,
+    projection: Option<P>,
+    seq: i64,
+}
+
+impl<P: VecU8Message + Send + Sync + Clone> AggregateContext<P> {
+    pub fn emit(&mut self, event_type: &str, event: Box<dyn ApplicableTo<P>>) -> Result<()> {
+        self.events.push((event_type.to_string(), event));
+        Ok(())
+    }
+}
+
+impl<P: VecU8Message + Send + Sync + Clone> Clone for AggregateContext<P> {
+    fn clone(&self) -> Self {
+        let mut cloned_events = Vec::new();
+        for (event_type, event) in &self.events {
+            let cloned_pair = (event_type.clone(), event.box_clone());
+            cloned_events.push(cloned_pair);
+        }
+        AggregateContext {
+            events: cloned_events,
+            aggregate_id: self.aggregate_id.clone(),
+            projection: self.projection.clone(),
+            seq: self.seq,
+        }
+    }
 }
 
 /// Struct that can be returned by a command handler to supply both the events that have
@@ -78,10 +110,11 @@ impl<P> Clone for EmitApplicableEventsAndResponse<P> {
 
 /// Trait that needs to be implemented by the aggregate registry.
 pub trait AggregateRegistry {
+    fn register(&mut self, applicator: &'static (dyn Fn(&mut Self) -> Result<()>)) -> Result<()>;
     fn insert(&mut self, aggregate_handle: Box<dyn AggregateHandle>) -> Result<()>;
     fn get(&self, name: &str) -> Option<&Box<dyn AggregateHandle>>;
     fn get_mut(&mut self, name: &str) -> Option<&mut Box<dyn AggregateHandle>>;
-    fn register(&self, commands: &mut Vec<String>, command_to_aggregate_mapping: &mut HashMap<String,String>);
+    fn register_commands(&self, commands: &mut Vec<String>, command_to_aggregate_mapping: &mut HashMap<String,String>);
 }
 
 /// Concrete struct that implements `AggregateRegistry`.
@@ -90,6 +123,9 @@ pub struct TheAggregateRegistry {
 }
 
 impl AggregateRegistry for TheAggregateRegistry {
+    fn register(&mut self, applicator: &'static (dyn Fn(&mut Self) -> Result<()>)) -> Result<()> {
+        applicator(self)
+    }
     fn insert(&mut self, aggregate_handle: Box<dyn AggregateHandle>) -> Result<()> {
         self.handlers.insert(aggregate_handle.name(), aggregate_handle);
         Ok(())
@@ -103,7 +139,7 @@ impl AggregateRegistry for TheAggregateRegistry {
         self.handlers.get_mut(name)
     }
 
-    fn register(&self, commands: &mut Vec<String>, command_to_aggregate_mapping: &mut HashMap<String,String>) {
+    fn register_commands(&self, commands: &mut Vec<String>, command_to_aggregate_mapping: &mut HashMap<String,String>) {
         for (aggregate_name, aggregate_handle) in &self.handlers {
             let command_names = aggregate_handle.command_names();
             for command_name in command_names {
@@ -138,7 +174,7 @@ impl<P: VecU8Message + Send + Sync + Clone + std::fmt::Debug + 'static> Aggregat
     }
     fn command_names(&self) -> Vec<String> {
         let mut result = Vec::new();
-        for (command_name, _) in &self.command_handler_registry.handlers {
+        for (command_name, _) in &self.old_command_handler_registry.handlers {
             result.push((*command_name).clone());
         }
         result
@@ -152,14 +188,15 @@ impl<P: VecU8Message + Send + Sync + Clone + std::fmt::Debug + 'static> Aggregat
 /// * `cache`: Caches command projections in memory.
 /// * `empty_projection`: Factory method for an empty projection.
 /// * `aggregate_id_extractor_registry`: Registry that assigns a handler that extracts the aggregate identifier from a command or command result.
-/// * `command_handler_registry`: Registry that assigns a handler for each command.
+/// * `old_command_handler_registry`: Registry that assigns a handler for each command.
 /// * `sourcing_handler_registry`: Registry that assigns a handler for each event that updates the projection.
 pub struct AggregateDefinition<P: VecU8Message + Send + Sync + Clone + 'static> {
     pub projection_name: String,
     cache: Arc<LruCache<String,(i64,P)>>,
     empty_projection: Box<dyn Fn() -> P + Send + Sync>,
     aggregate_id_extractor_registry: TheHandlerRegistry<(),String>,
-    command_handler_registry: TheHandlerRegistry<P,EmitApplicableEventsAndResponse<P>>,
+    old_command_handler_registry: TheHandlerRegistry<P,EmitApplicableEventsAndResponse<P>>,
+    command_handler_registry: TheHandlerRegistryMut<AggregateContext<P>,SerializedObject>,
     sourcing_handler_registry: TheHandlerRegistry<P,P>,
 }
 
@@ -168,12 +205,14 @@ pub fn create_aggregate_definition<P: VecU8Message + Send + Sync + Clone>(
     projection_name: String,
     empty_projection: Box<dyn Fn() -> P + Send + Sync>,
     aggregate_id_extractor_registry: TheHandlerRegistry<(),String>,
-    command_handler_registry: TheHandlerRegistry<P,EmitApplicableEventsAndResponse<P>>,
+    old_command_handler_registry: TheHandlerRegistry<P,EmitApplicableEventsAndResponse<P>>,
+    command_handler_registry: TheHandlerRegistryMut<AggregateContext<P>,SerializedObject>,
     sourcing_handler_registry: TheHandlerRegistry<P,P>
 ) -> AggregateDefinition<P>{
     let cache = Arc::new(LruCache::new(1024));
     AggregateDefinition {
-        cache, projection_name, empty_projection, aggregate_id_extractor_registry, command_handler_registry, sourcing_handler_registry,
+        cache, projection_name, empty_projection, aggregate_id_extractor_registry,
+        old_command_handler_registry, command_handler_registry, sourcing_handler_registry,
     }
 }
 
@@ -183,6 +222,35 @@ async fn handle_command<P: VecU8Message + Send + Sync + Clone + std::fmt::Debug 
     client: &mut EventStoreClient<Channel>
 ) -> Result<Option<EmitEventsAndResponse>> {
     debug!("Incoming command: {:?}", command);
+
+    if let Some(command_handler) = aggregate_definition.command_handler_registry.get(&command.name) {
+        let data = command.payload.clone().map(|p| p.data).ok_or(anyhow!("No payload data for: {:?}", command.name))?;
+
+        let mut aggregate_context = AggregateContext {
+            events: Vec::new(),
+            aggregate_id: None,
+            projection: None,
+            seq: -1,
+        };
+        let result = command_handler.handle(data, &mut aggregate_context).await?;
+        if !aggregate_context.events.is_empty() {
+            let aggregate_id = aggregate_context.aggregate_id.ok_or(anyhow!("Missing aggregate id"))?;
+            store_events(client, &aggregate_id, &aggregate_context.events, aggregate_context.seq + 1).await?;
+        }
+        Ok(Some(EmitEventsAndResponse {
+            events: vec![],
+            response: result
+        }))
+    } else {
+        old_handle_command(command, aggregate_definition, client).await
+    }
+}
+
+async fn old_handle_command<P: VecU8Message + Send + Sync + Clone + std::fmt::Debug + 'static>(
+    command: &Command,
+    aggregate_definition: &mut AggregateDefinition<P>,
+    client: &mut EventStoreClient<Channel>
+) -> Result<Option<EmitEventsAndResponse>> {
     let data = command.payload.clone().map(|p| p.data).ok_or(anyhow!("No payload data for: {:?}", command.name))?;
 
     let mut aggregate_id = None;
@@ -191,7 +259,7 @@ async fn handle_command<P: VecU8Message + Send + Sync + Clone + std::fmt::Debug 
     }
     debug!("Aggregate ID: {:?}", aggregate_id);
 
-    let handler = aggregate_definition.command_handler_registry.get(&command.name).ok_or(anyhow!("No handler for: {:?}", command.name))?;
+    let handler = aggregate_definition.old_command_handler_registry.get(&command.name).ok_or(anyhow!("No handler for: {:?}", command.name))?;
     let mut projection = (aggregate_definition.empty_projection)();
     let mut seq: i64 = -1;
 
@@ -231,7 +299,7 @@ async fn handle_command<P: VecU8Message + Send + Sync + Clone + std::fmt::Debug 
 
         if let Some(result) = result.as_ref() {
             debug!("Emit events: {:?}", &result.events);
-            store_events(client, &aggregate_id, &result, seq + 1).await?;
+            store_events(client, &aggregate_id, &result.events, seq + 1).await?;
 
             for (_, event) in &result.events {
                 event.apply_to(&mut projection)?;
@@ -278,7 +346,7 @@ pub async fn command_worker(
 
     let mut command_to_aggregate_mapping = HashMap::new();
     let mut command_vec: Vec<String> = vec![];
-    aggregate_registry.register(&mut command_vec, &mut command_to_aggregate_mapping);
+    aggregate_registry.register_commands(&mut command_vec, &mut command_to_aggregate_mapping);
     let command_box = Box::new(command_vec);
 
     let (tx, rx): (Sender<AxonCommandResult>, Receiver<AxonCommandResult>) = channel(10);
@@ -417,13 +485,13 @@ fn create_output_stream(client_id: String, command_box: Box<Vec<String>>, mut rx
     }
 }
 
-async fn store_events<P: std::fmt::Debug>(client: &mut EventStoreClient<Channel>, aggregate_id: &str, events: &EmitApplicableEventsAndResponse<P>, next_seq: i64) -> Result<()>{
+async fn store_events<P: std::fmt::Debug>(client: &mut EventStoreClient<Channel>, aggregate_id: &str, events: &Vec<(String,Box<dyn ApplicableTo<P>>)>, next_seq: i64) -> Result<()>{
     debug!("Store events: Client: {:?}: events: {:?}", client, events);
 
     let message_identifier = Uuid::new_v4();
     let now = std::time::SystemTime::now();
     let timestamp = now.duration_since(std::time::UNIX_EPOCH)?.as_millis() as i64;
-    let event_messages: Vec<Event> = events.events.iter().map(move |e| {
+    let event_messages: Vec<Event> = events.iter().map(move |e| {
         let (type_name, event) = e;
         let mut buf = Vec::new();
         event.encode_u8(&mut buf).unwrap();

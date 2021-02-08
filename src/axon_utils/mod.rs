@@ -17,23 +17,25 @@ use log::debug;
 use prost::Message;
 use tonic::transport::Channel;
 
-use crate::axon_server::SerializedObject;
-
 mod command_submit;
 mod command_worker;
 mod connection;
 mod event_processor;
 mod event_query;
 mod handler_registry;
+mod handler_registry_mut;
 mod query_processor;
 mod query_submit;
 
+pub use crate::axon_server::SerializedObject;
 pub use command_submit::init as init_command_sender;
 pub use command_worker::command_worker as command_worker;
-pub use command_worker::{AggregateDefinition, AggregateRegistry, EmitApplicableEventsAndResponse, TheAggregateRegistry, create_aggregate_definition, emit, emit_events_and_response, emit_events, empty_aggregate_registry};
+pub use command_worker::{AggregateContext, AggregateDefinition, AggregateRegistry, EmitApplicableEventsAndResponse, TheAggregateRegistry, create_aggregate_definition, emit, emit_events_and_response, emit_events, empty_aggregate_registry};
 pub use connection::wait_for_server as wait_for_server;
 pub use handler_registry::empty_handler_registry as empty_handler_registry;
 pub use handler_registry::{HandlerRegistry,TheHandlerRegistry};
+pub use handler_registry_mut::empty_handler_registry_mut as empty_handler_registry_mut;
+pub use handler_registry_mut::{HandlerRegistryMut,TheHandlerRegistryMut};
 pub use event_processor::{TokenStore,event_processor};
 pub use event_query::query_events;
 pub use query_processor::{QueryContext,QueryResult,query_processor};
