@@ -6,15 +6,15 @@ use lru::LruCache;
 use prost::Message;
 use std::collections::HashMap;
 use std::fmt::Debug;
-use std::sync::Arc;
+use std::ops::Deref;
+use std::sync::{Arc,Mutex};
 use tokio::sync::mpsc::{Sender,Receiver, channel};
 use tonic::Request;
 use tonic::transport::Channel;
 use uuid::Uuid;
 use super::{ApplicableTo, AxonConnection, VecU8Message, axon_serialize};
 use super::event_query::query_events_from_client;
-use super::handler_registry::{HandlerRegistry,TheHandlerRegistry};
-use super::handler_registry_mut::{HandlerRegistryMut,TheHandlerRegistryMut};
+use super::handler_registry::{HandlerRegistry,SubscriptionHandle,TheHandlerRegistry};
 use crate::axon_server::{ErrorMessage,FlowControl,SerializedObject};
 use crate::axon_server::command::{CommandProviderOutbound,CommandResponse,CommandSubscription};
 use crate::axon_server::command::{command_provider_inbound,Command};
@@ -48,7 +48,7 @@ pub fn emit_events_and_response<T: Message, P: VecU8Message + Send + Clone>(
 #[derive(Debug)]
 pub struct AggregateContext<P: VecU8Message + Send + Sync + Clone> {
     events: Vec<(String,Box<dyn ApplicableTo<P>>)>,
-    aggregate_id: Option<String>,
+    pub aggregate_id: Option<String>,
     projection: Option<P>,
     seq: i64,
 }
@@ -174,6 +174,9 @@ impl<P: VecU8Message + Send + Sync + Clone + std::fmt::Debug + 'static> Aggregat
     }
     fn command_names(&self) -> Vec<String> {
         let mut result = Vec::new();
+        for (command_name, _) in &self.command_handler_registry.handlers {
+            result.push((*command_name).clone());
+        }
         for (command_name, _) in &self.old_command_handler_registry.handlers {
             result.push((*command_name).clone());
         }
@@ -196,7 +199,7 @@ pub struct AggregateDefinition<P: VecU8Message + Send + Sync + Clone + 'static> 
     empty_projection: Box<dyn Fn() -> P + Send + Sync>,
     aggregate_id_extractor_registry: TheHandlerRegistry<(),String>,
     old_command_handler_registry: TheHandlerRegistry<P,EmitApplicableEventsAndResponse<P>>,
-    command_handler_registry: TheHandlerRegistryMut<AggregateContext<P>,SerializedObject>,
+    command_handler_registry: TheHandlerRegistry<Arc<Mutex<AggregateContext<P>>>,SerializedObject>,
     sourcing_handler_registry: TheHandlerRegistry<P,P>,
 }
 
@@ -206,7 +209,7 @@ pub fn create_aggregate_definition<P: VecU8Message + Send + Sync + Clone>(
     empty_projection: Box<dyn Fn() -> P + Send + Sync>,
     aggregate_id_extractor_registry: TheHandlerRegistry<(),String>,
     old_command_handler_registry: TheHandlerRegistry<P,EmitApplicableEventsAndResponse<P>>,
-    command_handler_registry: TheHandlerRegistryMut<AggregateContext<P>,SerializedObject>,
+    command_handler_registry: TheHandlerRegistry<Arc<Mutex<AggregateContext<P>>>,SerializedObject>,
     sourcing_handler_registry: TheHandlerRegistry<P,P>
 ) -> AggregateDefinition<P>{
     let cache = Arc::new(LruCache::new(1024));
@@ -216,7 +219,7 @@ pub fn create_aggregate_definition<P: VecU8Message + Send + Sync + Clone>(
     }
 }
 
-async fn handle_command<P: VecU8Message + Send + Sync + Clone + std::fmt::Debug + 'static>(
+async fn handle_command<P: VecU8Message + Send + Sync + Clone + std::fmt::Debug + 'static> (
     command: &Command,
     aggregate_definition: &mut AggregateDefinition<P>,
     client: &mut EventStoreClient<Channel>
@@ -226,15 +229,10 @@ async fn handle_command<P: VecU8Message + Send + Sync + Clone + std::fmt::Debug 
     if let Some(command_handler) = aggregate_definition.command_handler_registry.get(&command.name) {
         let data = command.payload.clone().map(|p| p.data).ok_or(anyhow!("No payload data for: {:?}", command.name))?;
 
-        let mut aggregate_context = AggregateContext {
-            events: Vec::new(),
-            aggregate_id: None,
-            projection: None,
-            seq: -1,
-        };
-        let result = command_handler.handle(data, &mut aggregate_context).await?;
+        let (result, aggregate_context) = internal_handle_command(command_handler, data).await?;
+
         if !aggregate_context.events.is_empty() {
-            let aggregate_id = aggregate_context.aggregate_id.ok_or(anyhow!("Missing aggregate id"))?;
+            let aggregate_id = aggregate_context.aggregate_id.as_ref().ok_or(anyhow!("Missing aggregate id"))?;
             store_events(client, &aggregate_id, &aggregate_context.events, aggregate_context.seq + 1).await?;
         }
         Ok(Some(EmitEventsAndResponse {
@@ -244,6 +242,32 @@ async fn handle_command<P: VecU8Message + Send + Sync + Clone + std::fmt::Debug 
     } else {
         old_handle_command(command, aggregate_definition, client).await
     }
+}
+
+async fn internal_handle_command<P: VecU8Message + Send + Sync + Clone + std::fmt::Debug + 'static> (
+    command_handler: &Box<dyn SubscriptionHandle<Arc<Mutex<AggregateContext<P>>>,SerializedObject>>,
+    data: Vec<u8>
+) -> Result<(Option<SerializedObject>, AggregateContext<P>)> {
+    let aggregate_context = Arc::new(Mutex::new(AggregateContext {
+        events: Vec::new(),
+        aggregate_id: None,
+        projection: None,
+        seq: -1,
+    }));
+    let result = command_handler.handle(data, aggregate_context.clone()).await?;
+    let aggregate_context = aggregate_context.deref().lock().map_err(|e| anyhow!(e.to_string()))?;
+    let mut cloned_events = Vec::new();
+    for (event_type, event) in &aggregate_context.events {
+        let cloned_pair = (event_type.clone(), event.box_clone());
+        cloned_events.push(cloned_pair);
+    }
+    let aggregate_context = AggregateContext {
+        events: cloned_events,
+        aggregate_id: aggregate_context.aggregate_id.clone(),
+        projection: aggregate_context.projection.clone(),
+        seq: aggregate_context.seq,
+    };
+    Ok((result, aggregate_context))
 }
 
 async fn old_handle_command<P: VecU8Message + Send + Sync + Clone + std::fmt::Debug + 'static>(

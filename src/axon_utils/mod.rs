@@ -23,7 +23,6 @@ mod connection;
 mod event_processor;
 mod event_query;
 mod handler_registry;
-mod handler_registry_mut;
 mod query_processor;
 mod query_submit;
 
@@ -34,8 +33,6 @@ pub use command_worker::{AggregateContext, AggregateDefinition, AggregateRegistr
 pub use connection::wait_for_server as wait_for_server;
 pub use handler_registry::empty_handler_registry as empty_handler_registry;
 pub use handler_registry::{HandlerRegistry,TheHandlerRegistry};
-pub use handler_registry_mut::empty_handler_registry_mut as empty_handler_registry_mut;
-pub use handler_registry_mut::{HandlerRegistryMut,TheHandlerRegistryMut};
 pub use event_processor::{TokenStore,event_processor};
 pub use event_query::query_events;
 pub use query_processor::{QueryContext,QueryResult,query_processor};
