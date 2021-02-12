@@ -58,9 +58,11 @@ pub struct TheHandlerRegistry<P: Send,W: Clone> {
 }
 
 impl<P: Send + Clone, W: Clone + 'static> HandlerRegistry<P,W> for TheHandlerRegistry<P,W> {
+
     fn register(&mut self, applicator: &'static (dyn Fn(&mut Self) -> Result<()>)) -> Result<()> {
         applicator(self)
     }
+
     fn insert<T: Send + Clone>(
         &mut self,
         name: &str,
