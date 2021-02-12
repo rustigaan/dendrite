@@ -29,7 +29,7 @@ mod query_submit;
 pub use crate::axon_server::SerializedObject;
 pub use command_submit::init as init_command_sender;
 pub use command_worker::command_worker as command_worker;
-pub use command_worker::{AggregateContext, AggregateDefinition, AggregateRegistry, EmitApplicableEventsAndResponse, TheAggregateRegistry, create_aggregate_definition, emit, emit_events_and_response, emit_events, empty_aggregate_registry};
+pub use command_worker::{AggregateContext, AggregateContextTrait, AggregateDefinition, AggregateRegistry, EmitApplicableEventsAndResponse, TheAggregateRegistry, create_aggregate_definition, emit, emit_events_and_response, emit_events, empty_aggregate_registry};
 pub use connection::wait_for_server as wait_for_server;
 pub use handler_registry::empty_handler_registry as empty_handler_registry;
 pub use handler_registry::{HandlerRegistry,TheHandlerRegistry};
