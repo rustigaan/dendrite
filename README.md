@@ -17,6 +17,8 @@ See the GitHub project [dendrite2go/archetype-rust-axon](https://github.com/dend
 * [dendrite on docs.rs](https://docs.rs/dendrite)
 * [rustic-dendrite on GitHub](https://github.com/dendrite2go/rustic-dendrite)
 
+The project [rustic-dendrite-macros](https://github.com/dendrite2go/rustic-dendrite-macros) provides macros that makes working with the dendrite crate more ergonomic.
+
 This project is a sibling of [dendrite2go](https://github.com/dendrite2go/dendrite) and [archetype-go-axon](https://github.com/dendrite2go/archetype-go-axon), but for the Rust programming language.
 
 ## Status
@@ -43,7 +45,6 @@ As well as:
 
 Now it would be nice to:
 
-* Add macros to make the definition of handlers more ergonomic
 * Add support for storing snapshots of aggregate projections in AxonServer.
 * Add support for segmentation to distribute the load on tracking event processors.
 * Add support for sagas.

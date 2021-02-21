@@ -1,14 +1,17 @@
-use anyhow::Result;
-use log::debug;
+use anyhow::{anyhow,Result};
+use async_stream::stream;
+use futures_core::stream::Stream;
+use log::{debug,error};
 use std::time;
 use tokio::time::sleep;
 use tonic;
 use tonic::Request;
 use tonic::transport::Channel;
 use uuid::Uuid;
-use super::AxonConnection;
-use crate::axon_server::control::ClientIdentification;
-use crate::axon_server::control::platform_service_client::PlatformServiceClient;
+use super::{AxonConnection,AxonServerHandle};
+use crate::axon_server::control::{ClientIdentification,PlatformInboundInstruction};
+use crate::axon_server::control::platform_service_client::{PlatformServiceClient};
+use crate::axon_server::control::platform_inbound_instruction;
 
 /// Polls AxonServer until it is available and ready.
 pub async fn wait_for_server(host: &str, port: u32, label: &str) -> Result<AxonConnection> {
@@ -61,4 +64,56 @@ async fn connect(url: &str, label: &str) -> Result<Option<Channel>> {
     }
     debug!("Response: {:?}", response);
     return Ok(Some(conn));
+}
+
+
+/// Subscribes  to commands, verifies them against the command projection and sends emitted events to AxonServer.
+pub async fn platform_worker(
+    axon_server_handle: AxonServerHandle,
+    label: &str
+) -> Result<()> {
+    debug!("Platform worker: start");
+    let conn = axon_server_handle.conn;
+
+    let mut client = PlatformServiceClient::new(conn.clone());
+    let mut client_identification = ClientIdentification::default();
+    client_identification.component_name = format!("Rust client {}", &*label);
+    let output = create_output_stream(label.to_string());
+    let response = client.open_stream(Request::new(output)).await?;
+    debug!("Stream response: {:?}", response);
+
+    let mut inbound = response.into_inner();
+    loop {
+        match inbound.message().await {
+            Ok(Some(message)) => {
+                debug!("Incoming (= 'outbound') platform instruction: {:?}", message);
+            }
+            Ok(None) => {
+                debug!("None incoming");
+            }
+            Err(e) => {
+                error!("Error from AxonServer: {:?}", e);
+                return Err(anyhow!(e.code()));
+            }
+        }
+    }
+}
+
+fn create_output_stream(label: String) -> impl Stream<Item = PlatformInboundInstruction> {
+    let interval = time::Duration::from_secs(300);
+    stream! {
+        let mut client_identification = ClientIdentification::default();
+        client_identification.component_name = format!("Rust client {}", label.clone());
+        let instruction_id = Uuid::new_v4();
+        let instruction = PlatformInboundInstruction {
+            instruction_id: format!("{}", instruction_id),
+            request: Some(platform_inbound_instruction::Request::Register(client_identification)),
+        };
+        yield instruction.to_owned();
+
+        loop {
+            sleep(interval).await;
+            debug!(".");
+        }
+    }
 }
