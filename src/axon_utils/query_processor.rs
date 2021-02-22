@@ -100,7 +100,7 @@ fn create_output_stream(client_id: String, query_box: Box<Vec<String>>, mut rx: 
             debug!("Query processor: stream: subscribe to query type: {:?}", query_name);
             let subscription_id = Uuid::new_v4();
             let subscription = QuerySubscription {
-                message_id: format!("{:?}", subscription_id.to_simple()),
+                message_id: format!("{}", subscription_id),
                 query: query_name.to_string().clone(),
                 result_name: "*".to_string(),
                 client_id: client_id.clone(),
@@ -110,7 +110,7 @@ fn create_output_stream(client_id: String, query_box: Box<Vec<String>>, mut rx: 
             let instruction_id = Uuid::new_v4();
             debug!("Subscribe query: Instruction ID: {:?}", instruction_id);
             let instruction = QueryProviderOutbound {
-                instruction_id: format!("{:?}", instruction_id.to_simple()),
+                instruction_id: format!("{}", instruction_id),
                 request: Some(query_provider_outbound::Request::Subscribe(subscription)),
             };
             yield instruction.to_owned();
@@ -125,7 +125,7 @@ fn create_output_stream(client_id: String, query_box: Box<Vec<String>>, mut rx: 
         };
         let instruction_id = Uuid::new_v4();
         let instruction = QueryProviderOutbound {
-            instruction_id: format!("{:?}", instruction_id.to_simple()),
+            instruction_id: format!("{}", instruction_id),
             request: Some(query_provider_outbound::Request::FlowControl(flow_control)),
         };
         yield instruction.to_owned();
@@ -134,7 +134,7 @@ fn create_output_stream(client_id: String, query_box: Box<Vec<String>>, mut rx: 
             debug!("Send query response: {:?}", axon_query_result);
             let response_id = Uuid::new_v4();
             let response = QueryResponse {
-                message_identifier: format!("{:?}", response_id.to_simple()),
+                message_identifier: format!("{}", response_id),
                 error_code: "".to_string(),
                 error_message: None,
                 payload: axon_query_result.result.clone(),
@@ -144,7 +144,7 @@ fn create_output_stream(client_id: String, query_box: Box<Vec<String>>, mut rx: 
             };
             let instruction_id = Uuid::new_v4();
             let instruction = QueryProviderOutbound {
-                instruction_id: format!("{:?}", instruction_id.to_simple()),
+                instruction_id: format!("{}", instruction_id),
                 request: Some(query_provider_outbound::Request::QueryResponse(response)),
             };
             debug!("QueryResponse instruction: {:?}", instruction);
@@ -152,12 +152,12 @@ fn create_output_stream(client_id: String, query_box: Box<Vec<String>>, mut rx: 
 
             let complete_id = Uuid::new_v4();
             let complete = QueryComplete {
-                message_id: format!("{:?}", complete_id.to_simple()),
+                message_id: format!("{}", complete_id),
                 request_id: axon_query_result.message_identifier.clone(),
             };
             let complete_instruction_id = Uuid::new_v4();
             let complete_instruction = QueryProviderOutbound {
-                instruction_id: format!("{:?}", complete_instruction_id.to_simple()),
+                instruction_id: format!("{}", complete_instruction_id),
                 request: Some(query_provider_outbound::Request::QueryComplete(complete)),
             };
             debug!("Complete instruction: {:?}", complete_instruction);
@@ -172,7 +172,7 @@ fn create_output_stream(client_id: String, query_box: Box<Vec<String>>, mut rx: 
                 };
                 let instruction_id = Uuid::new_v4();
                 let instruction = QueryProviderOutbound {
-                    instruction_id: format!("{:?}", instruction_id.to_simple()),
+                    instruction_id: format!("{}", instruction_id),
                     request: Some(query_provider_outbound::Request::FlowControl(flow_control)),
                 };
                 yield instruction.to_owned();

@@ -411,7 +411,7 @@ fn create_output_stream(client_id: String, command_box: Box<Vec<String>>, mut rx
             debug!("Command worker: stream: subscribe to command type: {:?}", command_name);
             let subscription_id = Uuid::new_v4();
             let subscription = CommandSubscription {
-                message_id: format!("{:?}", subscription_id.to_simple()),
+                message_id: format!("{}", subscription_id),
                 command: command_name.to_string().clone(),
                 client_id: client_id.clone(),
                 component_name: client_id.clone(),
@@ -421,7 +421,7 @@ fn create_output_stream(client_id: String, command_box: Box<Vec<String>>, mut rx
             let instruction_id = Uuid::new_v4();
             debug!("Subscribe command: Instruction ID: {:?}", instruction_id);
             let instruction = CommandProviderOutbound {
-                instruction_id: format!("{:?}", instruction_id.to_simple()),
+                instruction_id: format!("{}", instruction_id),
                 request: Some(command_provider_outbound::Request::Subscribe(subscription)),
             };
             yield instruction.to_owned();
@@ -436,7 +436,7 @@ fn create_output_stream(client_id: String, command_box: Box<Vec<String>>, mut rx
         };
         let instruction_id = Uuid::new_v4();
         let instruction = CommandProviderOutbound {
-            instruction_id: format!("{:?}", instruction_id.to_simple()),
+            instruction_id: format!("{}", instruction_id),
             request: Some(command_provider_outbound::Request::FlowControl(flow_control)),
         };
         yield instruction.to_owned();
@@ -445,7 +445,7 @@ fn create_output_stream(client_id: String, command_box: Box<Vec<String>>, mut rx
             debug!("Send command response: {:?}", axon_command_result);
             let response_id = Uuid::new_v4();
             let mut response = CommandResponse {
-                message_identifier: format!("{:?}", response_id.to_simple()),
+                message_identifier: format!("{}", response_id),
                 request_identifier: axon_command_result.message_identifier.clone(),
                 payload: None,
                 error_code: "".to_string(),
@@ -469,7 +469,7 @@ fn create_output_stream(client_id: String, command_box: Box<Vec<String>>, mut rx
             }
             let instruction_id = Uuid::new_v4();
             let instruction = CommandProviderOutbound {
-                instruction_id: format!("{:?}", instruction_id.to_simple()),
+                instruction_id: format!("{}", instruction_id),
                 request: Some(command_provider_outbound::Request::CommandResponse(response)),
             };
             yield instruction.to_owned();
@@ -482,7 +482,7 @@ fn create_output_stream(client_id: String, command_box: Box<Vec<String>>, mut rx
                 };
                 let instruction_id = Uuid::new_v4();
                 let instruction = CommandProviderOutbound {
-                    instruction_id: format!("{:?}", instruction_id.to_simple()),
+                    instruction_id: format!("{}", instruction_id),
                     request: Some(command_provider_outbound::Request::FlowControl(flow_control)),
                 };
                 yield instruction.to_owned();
@@ -511,7 +511,7 @@ async fn store_events<P: std::fmt::Debug>(client: &mut EventStoreClient<Channel>
             data: buf,
         };
         Event {
-            message_identifier: format!("{:?}", message_identifier.to_simple()),
+            message_identifier: format!("{}", message_identifier),
             timestamp,
             aggregate_identifier: aggregate_id.to_string(),
             aggregate_sequence_number: next_seq,

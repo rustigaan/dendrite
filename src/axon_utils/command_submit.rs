@@ -41,7 +41,7 @@ async fn submit_command(this: &AxonServerHandle, message: &SerializedObject) -> 
     debug!("Command Service Client: {:?}", client);
     let uuid = Uuid::new_v4();
     let command = Command {
-        message_identifier: format!("{:?}", uuid.to_simple()),
+        message_identifier: format!("{}", uuid),
         name: message.r#type.clone(),
         payload: Some(message.clone()),
         client_id: "yyy".to_string(),

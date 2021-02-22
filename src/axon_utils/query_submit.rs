@@ -34,7 +34,7 @@ async fn submit_query<'a>(this: &AxonServerHandle, message: &SerializedObject) -
     debug!("Query Service Client: {:?}", client);
     let uuid = Uuid::new_v4();
     let query_request = QueryRequest {
-        message_identifier: format!("{:?}", uuid.to_simple()),
+        message_identifier: format!("{}", uuid),
         query: message.r#type.clone(),
         response_type: None,
         payload: Some(message.clone()),
