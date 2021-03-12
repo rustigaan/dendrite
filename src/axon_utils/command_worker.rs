@@ -12,7 +12,7 @@ use tokio::sync::mpsc::{Sender,Receiver, channel};
 use tonic::Request;
 use tonic::transport::Channel;
 use uuid::Uuid;
-use super::{ApplicableTo, AxonConnection, VecU8Message, axon_serialize};
+use super::{ApplicableTo, AxonServerHandle, VecU8Message, axon_serialize};
 use super::event_query::query_events_from_client;
 use super::handler_registry::{HandlerRegistry,SubscriptionHandle,TheHandlerRegistry};
 use crate::axon_server::{ErrorMessage,FlowControl,SerializedObject};
@@ -344,15 +344,13 @@ struct AxonCommandResult {
 
 /// Subscribes  to commands, verifies them against the command projection and sends emitted events to AxonServer.
 pub async fn command_worker(
-    axon_connection: AxonConnection,
+    axon_server_handle: AxonServerHandle,
     aggregate_registry: &mut TheAggregateRegistry
 ) -> Result<()> {
     debug!("Command worker: start");
 
-    let axon_connection_clone = axon_connection.clone();
-    let mut client = CommandServiceClient::new(axon_connection.conn);
-    let mut event_store_client = EventStoreClient::new(axon_connection_clone.conn);
-    let client_id = axon_connection.id.clone();
+    let mut client = CommandServiceClient::new(axon_server_handle.conn.clone());
+    let mut event_store_client = EventStoreClient::new(axon_server_handle.conn.clone());
 
     let mut command_to_aggregate_mapping = HashMap::new();
     let mut command_vec: Vec<String> = vec![];
@@ -361,7 +359,7 @@ pub async fn command_worker(
 
     let (tx, rx): (Sender<AxonCommandResult>, Receiver<AxonCommandResult>) = channel(10);
 
-    let outbound = create_output_stream(client_id, command_box, rx);
+    let outbound = create_output_stream(axon_server_handle, command_box, rx);
 
     debug!("Command worker: calling open_stream");
     let response = client.open_stream(Request::new(outbound)).await?;
@@ -404,9 +402,11 @@ pub async fn command_worker(
     }
 }
 
-fn create_output_stream(client_id: String, command_box: Box<Vec<String>>, mut rx: Receiver<AxonCommandResult>) -> impl Stream<Item = CommandProviderOutbound> {
+fn create_output_stream(axon_server_handle: AxonServerHandle, command_box: Box<Vec<String>>, mut rx: Receiver<AxonCommandResult>) -> impl Stream<Item = CommandProviderOutbound> {
     stream! {
         debug!("Command worker: stream: start: {:?}", rx);
+        let client_id = axon_server_handle.client_id.clone();
+        let component_name = axon_server_handle.display_name.clone();
         for command_name in command_box.iter() {
             debug!("Command worker: stream: subscribe to command type: {:?}", command_name);
             let subscription_id = Uuid::new_v4();
@@ -414,7 +414,7 @@ fn create_output_stream(client_id: String, command_box: Box<Vec<String>>, mut rx
                 message_id: format!("{}", subscription_id),
                 command: command_name.to_string().clone(),
                 client_id: client_id.clone(),
-                component_name: client_id.clone(),
+                component_name: component_name.clone(),
                 load_factor: 100,
             };
             debug!("Subscribe command: Subscription: {:?}", subscription);

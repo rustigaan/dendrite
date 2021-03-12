@@ -29,7 +29,6 @@ async fn submit_query<'a>(this: &AxonServerHandle, message: &SerializedObject) -
     debug!("Message: {:?}", message);
     let this = this.clone();
     let conn = this.conn;
-    let client_id = this.display_name;
     let mut client = QueryServiceClient::new(conn);
     debug!("Query Service Client: {:?}", client);
     let uuid = Uuid::new_v4();
@@ -38,8 +37,8 @@ async fn submit_query<'a>(this: &AxonServerHandle, message: &SerializedObject) -
         query: message.r#type.clone(),
         response_type: None,
         payload: Some(message.clone()),
-        client_id,
-        component_name: "RustCommandClient".to_string(),
+        client_id: this.client_id.clone(),
+        component_name: this.display_name.clone(),
         meta_data: HashMap::new(),
         processing_instructions: Vec::new(),
         timestamp: 0,

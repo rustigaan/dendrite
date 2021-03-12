@@ -8,19 +8,20 @@ use tonic;
 use tonic::Request;
 use tonic::transport::Channel;
 use uuid::Uuid;
-use super::{AxonConnection,AxonServerHandle};
+use super::AxonServerHandle;
 use crate::axon_server::control::{ClientIdentification,PlatformInboundInstruction};
 use crate::axon_server::control::platform_service_client::{PlatformServiceClient};
 use crate::axon_server::control::platform_inbound_instruction;
 
 /// Polls AxonServer until it is available and ready.
-pub async fn wait_for_server(host: &str, port: u32, label: &str) -> Result<AxonConnection> {
+pub async fn wait_for_server(host: &str, port: u32, label: &str) -> Result<AxonServerHandle> {
     let url = format!("http://{}:{}", host, port);
     let conn = wait_for_connection(&url, label).await;
-    debug!("Connection: {:?}", conn);
-    let uuid = Uuid::new_v4();
-    let connection = AxonConnection {
-        id: format!("{}", uuid),
+    let client_id = format!("{}", Uuid::new_v4());
+    debug!("Axon server handle: {:?}: {:?}: {:?}", label, client_id, conn);
+    let connection = AxonServerHandle {
+        display_name: label.to_string(),
+        client_id,
         conn
     };
     Ok(connection)

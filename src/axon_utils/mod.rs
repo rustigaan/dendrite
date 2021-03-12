@@ -42,13 +42,7 @@ pub use query_processor::{QueryContext,QueryResult,query_processor};
 #[derive(Debug, Clone)]
 pub struct AxonServerHandle {
     pub display_name: String,
-    pub conn: Channel,
-}
-
-/// A connection to AxonServer.
-#[derive(Debug,Clone)]
-pub struct AxonConnection {
-    pub id: String,
+    pub client_id: String,
     pub conn: Channel,
 }
 

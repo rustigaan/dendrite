@@ -10,10 +10,9 @@ use crate::axon_server::command::command_service_client::CommandServiceClient;
 
 /// Polls AxonServer until it is available and ready.
 pub async fn init() -> Result<AxonServerHandle> {
-    let axon_connection = wait_for_server("proxy", 8124, "API").await.unwrap();
-    debug!("Axon connection: {:?}", axon_connection);
-    let command_sink = AxonServerHandle { display_name: axon_connection.id, conn: axon_connection.conn };
-    Ok(command_sink)
+    let axon_server_handle = wait_for_server("proxy", 8124, "API").await.unwrap();
+    debug!("Axon connection: {:?}", axon_server_handle);
+    Ok(axon_server_handle)
 }
 
 #[tonic::async_trait]
@@ -44,8 +43,8 @@ async fn submit_command(this: &AxonServerHandle, message: &SerializedObject) -> 
         message_identifier: format!("{}", uuid),
         name: message.r#type.clone(),
         payload: Some(message.clone()),
-        client_id: "yyy".to_string(),
-        component_name: "RustCommandClient".to_string(),
+        client_id: this.client_id.clone(),
+        component_name: this.display_name.clone(),
         meta_data: HashMap::new(),
         processing_instructions: Vec::new(),
         timestamp: 0,

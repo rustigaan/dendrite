@@ -38,8 +38,7 @@ pub async fn query_processor<Q: QueryContext + Send + Sync + Clone>(
 ) -> Result<()> {
     debug!("Query processor: start");
 
-    let mut client = QueryServiceClient::new(axon_server_handle.conn);
-    let client_id = axon_server_handle.display_name.clone();
+    let mut client = QueryServiceClient::new(axon_server_handle.conn.clone());
 
     let mut query_vec: Vec<String> = vec![];
     for (query_name, _) in &query_handler_registry.handlers {
@@ -49,7 +48,7 @@ pub async fn query_processor<Q: QueryContext + Send + Sync + Clone>(
 
     let (tx, rx): (Sender<AxonQueryResult>, Receiver<AxonQueryResult>) = channel(10);
 
-    let outbound = create_output_stream(client_id, query_box, rx);
+    let outbound = create_output_stream(axon_server_handle, query_box, rx);
 
     debug!("Query processor: calling open_stream");
     let response = client.open_stream(Request::new(outbound)).await?;
@@ -93,8 +92,9 @@ pub async fn query_processor<Q: QueryContext + Send + Sync + Clone>(
     }
 }
 
-fn create_output_stream(client_id: String, query_box: Box<Vec<String>>, mut rx: Receiver<AxonQueryResult>) -> impl Stream<Item = QueryProviderOutbound> {
+fn create_output_stream(axon_server_handle: AxonServerHandle, query_box: Box<Vec<String>>, mut rx: Receiver<AxonQueryResult>) -> impl Stream<Item = QueryProviderOutbound> {
     stream! {
+        let client_id = axon_server_handle.client_id.clone();
         debug!("Query processor: stream: start: {:?}", rx);
         for query_name in query_box.iter() {
             debug!("Query processor: stream: subscribe to query type: {:?}", query_name);
@@ -104,7 +104,7 @@ fn create_output_stream(client_id: String, query_box: Box<Vec<String>>, mut rx: 
                 query: query_name.to_string().clone(),
                 result_name: "*".to_string(),
                 client_id: client_id.clone(),
-                component_name: client_id.clone(),
+                component_name: axon_server_handle.display_name.clone(),
             };
             debug!("Subscribe query: Subscription: {:?}", subscription);
             let instruction_id = Uuid::new_v4();
