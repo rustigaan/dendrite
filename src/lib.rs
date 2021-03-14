@@ -9,9 +9,7 @@ pub mod axon_server;
 
 #[macro_export]
 macro_rules! register {
-    // `()` indicates that the macro takes no argument.
     ($registry:ident, $handler:ident) => {
-        // The macro will expand into the contents of this block.
         $registry.register(&$handler)
     };
 }
