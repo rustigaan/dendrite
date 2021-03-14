@@ -34,9 +34,7 @@ impl CommandSink for AxonServerHandle {
 
 async fn submit_command(this: &AxonServerHandle, message: &SerializedObject) -> Result<Option<SerializedObject>> {
     debug!("Message: {:?}", message);
-    let this = this.clone();
-    let conn = this.conn;
-    let mut client = CommandServiceClient::new(conn);
+    let mut client = CommandServiceClient::new(this.conn.clone());
     debug!("Command Service Client: {:?}", client);
     let uuid = Uuid::new_v4();
     let command = Command {

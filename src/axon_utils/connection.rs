@@ -104,7 +104,7 @@ fn create_output_stream(label: String) -> impl Stream<Item = PlatformInboundInst
     let interval = time::Duration::from_secs(300);
     stream! {
         let mut client_identification = ClientIdentification::default();
-        client_identification.component_name = format!("Rust client {}", label.clone());
+        client_identification.component_name = format!("Rust client {}", &label);
         let instruction_id = Uuid::new_v4();
         let instruction = PlatformInboundInstruction {
             instruction_id: format!("{}", instruction_id),

@@ -69,7 +69,7 @@ impl<P: VecU8Message + Send + Sync + Clone + Debug> AggregateContextTrait<P> for
     }
     async fn get_projection(&mut self, aggregate_id: &str) -> Result<P> {
         let client = &mut self.event_store_client.clone();
-        if let Some(existing_aggregate_id) = self.aggregate_id.clone() {
+        if let Some(ref existing_aggregate_id) = self.aggregate_id {
             if aggregate_id != existing_aggregate_id {
                 anyhow!("Inconsistent aggregate_id: {:?}: {:?}", aggregate_id, existing_aggregate_id);
             }
