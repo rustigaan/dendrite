@@ -6,6 +6,7 @@
 
 pub mod axon_utils;
 pub mod axon_server;
+pub mod intellij_work_around;
 
 #[macro_export]
 macro_rules! register {
