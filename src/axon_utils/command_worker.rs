@@ -83,6 +83,8 @@ impl<P: VecU8Message + Send + Sync + Clone + Debug> AggregateContextTrait<P> for
                 debug!("Cache hit: {:?}: {:?}", aggregate_id, s);
                 self.projection = p.clone();
                 self.seq = *s;
+            } else {
+                debug!("Cache miss: {:?}", aggregate_id);
             }
         }
         if self.seq < 0 {
@@ -98,6 +100,10 @@ impl<P: VecU8Message + Send + Sync + Clone + Debug> AggregateContextTrait<P> for
                 self.seq = event.aggregate_sequence_number;
             }
             debug!("Restored projection: {:?}: {:?}", self.seq, &self.projection);
+            if self.seq >= 0 {
+                let mut cache = aggregate_definition.cache.lock().map_err(|e| anyhow!(e.to_string()))?;
+                cache.put(aggregate_id.to_string(), (self.seq, self.projection.clone()));
+            }
         }
         Ok(self.projection.clone())
     }
@@ -313,13 +319,42 @@ async fn internal_handle_command<P: VecU8Message + Send + Sync + Clone + std::fm
         seq: -1,
     }));
     let result = command_handler.handle(data, aggregate_context.clone()).await?;
-    let aggregate_context = aggregate_context.deref().lock().await;
+    let aggregate_context = &mut aggregate_context.deref().lock().await;
+    let last_stored_seq = aggregate_context.seq;
+    let aggregate_id = aggregate_context.aggregate_id.as_ref().map(|id| id.clone());
+    if let Some(ref aggregate_id) = aggregate_id {
+        let mut next_seq: i64 = last_stored_seq + 1;
+        for pair in clone_events(&mut aggregate_context.events) {
+            let event = encode_event(&pair, aggregate_id, next_seq)?;
+            debug!("Replaying new event: {:?}", event);
+            if let Some(payload) = event.payload {
+                let sourcing_handler = aggregate_context.aggregate_definition.sourcing_handler_registry.get(&payload.r#type).ok_or(anyhow!("Missing sourcing handler for {:?}", payload.r#type))?;
+                if let Some(p) = (sourcing_handler).handle(payload.data, aggregate_context.projection.clone()).await? {
+                    aggregate_context.projection = p;
+                    aggregate_context.seq = next_seq;
+                    next_seq = next_seq + 1;
+                }
+            }
+        }
+        if next_seq > last_stored_seq + 1 {
+            let mut cache = aggregate_context.aggregate_definition.cache.lock().map_err(|e| anyhow!(e.to_string()))?;
+            cache.put(aggregate_id.to_string(), (aggregate_context.seq, aggregate_context.projection.clone()));
+        }
+    }
     let mut cloned_events = Vec::new();
     for (event_type, event) in &aggregate_context.events {
         let cloned_pair = (event_type.clone(), event.box_clone());
         cloned_events.push(cloned_pair);
     }
-    Ok((result, cloned_events, aggregate_context.aggregate_id.clone(), aggregate_context.seq))
+    Ok((result, cloned_events, aggregate_context.aggregate_id.clone(), last_stored_seq))
+}
+
+fn clone_events<P>(events: &mut Vec<(String,Box<dyn ApplicableTo<P>>)>) -> Vec<(String,Box<dyn ApplicableTo<P>>)> {
+    let mut cloned_events = Vec::new();
+    for (event_type, event) in events {
+        cloned_events.push((event_type.clone(), event.box_clone()));
+    }
+    cloned_events
 }
 
 fn get_command_handler<P: VecU8Message + Send + Sync + Clone + std::fmt::Debug + 'static> (
@@ -498,30 +533,40 @@ fn create_output_stream(axon_server_handle: AxonServerHandle, command_box: Box<V
 async fn store_events<P: std::fmt::Debug>(client: &mut EventStoreClient<Channel>, aggregate_id: &str, events: &Vec<(String,Box<dyn ApplicableTo<P>>)>, next_seq: i64) -> Result<()>{
     debug!("Store events: Client: {:?}: events: {:?}", client, events);
 
-    let message_identifier = Uuid::new_v4();
     let now = std::time::SystemTime::now();
     let timestamp = now.duration_since(std::time::UNIX_EPOCH)?.as_millis() as i64;
-    let event_messages: Vec<Event> = events.iter().map(move |e| {
-        let (type_name, event) = e;
-        let mut buf = Vec::new();
-        event.encode_u8(&mut buf).unwrap();
-        let e = SerializedObject {
-            r#type: type_name.to_string(),
-            revision: "".to_string(),
-            data: buf,
-        };
-        Event {
-            message_identifier: format!("{}", message_identifier),
-            timestamp,
-            aggregate_identifier: aggregate_id.to_string(),
-            aggregate_sequence_number: next_seq,
-            aggregate_type: "Greeting".to_string(),
-            payload: Some(e),
-            meta_data: HashMap::new(),
-            snapshot: false,
-        }
-    }).collect();
+    let event_messages: Vec<Event> = events.iter()
+        .map(move |e| encode_event_with_timestamp(e, aggregate_id, timestamp, next_seq))
+        .collect();
     let request = Request::new(futures_util::stream::iter(event_messages));
     client.append_event(request).await?;
     Ok(())
+}
+
+fn encode_event<P>(e: &(String,Box<dyn ApplicableTo<P>>), aggregate_id: &str, next_seq: i64) -> Result<Event> {
+    let now = std::time::SystemTime::now();
+    let timestamp = now.duration_since(std::time::UNIX_EPOCH)?.as_millis() as i64;
+    Ok(encode_event_with_timestamp(e, aggregate_id, timestamp, next_seq))
+}
+
+fn encode_event_with_timestamp<P>(e: &(String,Box<dyn ApplicableTo<P>>), aggregate_id: &str, timestamp: i64, next_seq: i64) -> Event {
+    let (type_name, event) = e;
+    let mut buf = Vec::new();
+    event.encode_u8(&mut buf).unwrap();
+    let e = SerializedObject {
+        r#type: type_name.to_string(),
+        revision: "".to_string(),
+        data: buf,
+    };
+    let message_identifier = Uuid::new_v4();
+    Event {
+        message_identifier: format!("{}", message_identifier),
+        timestamp,
+        aggregate_identifier: aggregate_id.to_string(),
+        aggregate_sequence_number: next_seq,
+        aggregate_type: "Greeting".to_string(),
+        payload: Some(e),
+        meta_data: HashMap::new(),
+        snapshot: false,
+    }
 }
