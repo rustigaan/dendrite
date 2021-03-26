@@ -1,12 +1,13 @@
-use anyhow::{Result,anyhow};
-use log::{debug};
+use super::{wait_for_server, AxonServerHandle, CommandSink, VecU8Message};
+use crate::axon_server::command::command_service_client::CommandServiceClient;
+use crate::axon_server::command::Command;
+use crate::axon_server::SerializedObject;
+use crate::intellij_work_around::Debuggable;
+use anyhow::{anyhow, Result};
+use log::debug;
 use std::collections::HashMap;
 use std::vec::Vec;
 use uuid::Uuid;
-use super::{CommandSink, AxonServerHandle, wait_for_server, VecU8Message};
-use crate::axon_server::SerializedObject;
-use crate::axon_server::command::Command;
-use crate::axon_server::command::command_service_client::CommandServiceClient;
 
 /// Polls AxonServer until it is available and ready.
 pub async fn init() -> Result<AxonServerHandle> {
@@ -17,8 +18,15 @@ pub async fn init() -> Result<AxonServerHandle> {
 
 #[tonic::async_trait]
 impl CommandSink for AxonServerHandle {
-    async fn send_command(&self, command_type: &str, command: Box<&(dyn VecU8Message + Sync)>) -> Result<Option<SerializedObject>> {
-        debug!("Sending command: {:?}: {:?}", command_type, self.display_name);
+    async fn send_command(
+        &self,
+        command_type: &str,
+        command: Box<&(dyn VecU8Message + Sync)>,
+    ) -> Result<Option<SerializedObject>> {
+        debug!(
+            "Sending command: {:?}: {:?}",
+            command_type, self.display_name
+        );
         let mut buf = Vec::new();
         command.encode_u8(&mut buf).unwrap();
         let buffer_length = buf.len();
@@ -32,8 +40,11 @@ impl CommandSink for AxonServerHandle {
     }
 }
 
-async fn submit_command(this: &AxonServerHandle, message: &SerializedObject) -> Result<Option<SerializedObject>> {
-    debug!("Message: {:?}", message);
+async fn submit_command(
+    this: &AxonServerHandle,
+    message: &SerializedObject,
+) -> Result<Option<SerializedObject>> {
+    debug!("Message: {:?}", Debuggable::from(message));
     let mut client = CommandServiceClient::new(this.conn.clone());
     debug!("Command Service Client: {:?}", client);
     let uuid = Uuid::new_v4();
@@ -48,8 +59,8 @@ async fn submit_command(this: &AxonServerHandle, message: &SerializedObject) -> 
         timestamp: 0,
     };
     let response = client.dispatch(command).await?;
-    debug!("Response: {:?}", response);
     let response = response.into_inner();
+    debug!("Response: {:?}", Debuggable::from(&response));
     if let Some(error_message) = response.error_message {
         return Err(anyhow!(error_message.message));
     }

@@ -59,7 +59,7 @@ service EventScheduler {
     rpc RescheduleEvent (RescheduleEventRequest) returns (ScheduleToken) {
     }
     //  Cancel the publication of a scheduled event. If the events has already been published, this method does nothing.
-    rpc CancelScheduledEvent (CancelScheduledEventRequest) returns (InstructionAck) {
+    rpc CancelScheduledEvent (CancelScheduledEventRequest) returns (common.InstructionAck) {
     }
 }
 
@@ -292,10 +292,10 @@ message Event {
     int64 timestamp = 5;
 
     /* The Payload of the Event */
-    SerializedObject payload = 6;
+    common.SerializedObject payload = 6;
 
     /* The Meta Data of the Event */
-    map<string, MetaDataValue> meta_data = 7;
+    map<string, common.MetaDataValue> meta_data = 7;
 
     /* Flag indicating whether the Event is a snapshot Event */
     bool snapshot = 8;

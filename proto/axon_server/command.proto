@@ -28,13 +28,13 @@ message CommandProviderOutbound {
         CommandSubscription unsubscribe = 2;
 
         /* Instruction to increase the number of instructions AxonServer may send to this component */
-        FlowControl flow_control = 3;
+        common.FlowControl flow_control = 3;
 
         /* Sends a result of Command processing */
         CommandResponse command_response = 4;
 
         /* Acknowledgement of previously sent instruction via inbound stream */
-        InstructionAck ack = 5;
+        common.InstructionAck ack = 5;
     }
 
     /* Instruction identifier. If this identifier is set, this instruction will be acknowledged via inbound stream */
@@ -47,7 +47,7 @@ message CommandProviderInbound {
     oneof request {
 
         /* Acknowledgement of previously sent instruction via outbound stream */
-        InstructionAck ack = 1;
+        common.InstructionAck ack = 1;
 
         /* A command for this component to process */
         Command command = 2;
@@ -70,13 +70,13 @@ message Command {
     int64 timestamp = 3;
 
     /* The payload of the Command, providing details on the instructions for the recipient */
-    SerializedObject payload = 4;
+    common.SerializedObject payload = 4;
 
     /* Meta Data entries of the Command Message, providing contextual information to the recipient */
-    map<string, MetaDataValue> meta_data = 5;
+    map<string, common.MetaDataValue> meta_data = 5;
 
     /* Instructions for AxonServer when routing this Command Message */
-    repeated ProcessingInstruction processing_instructions = 6;
+    repeated common.ProcessingInstruction processing_instructions = 6;
 
     /* The unique identifier of the component dispatching this message */
     string client_id = 7;
@@ -95,16 +95,16 @@ message CommandResponse {
     string error_code = 2;
 
     /* A detailed description of the error */
-    ErrorMessage error_message = 3;
+    common.ErrorMessage error_message = 3;
 
     /* The payload to provide as a result to the dispatcher */
-    SerializedObject payload = 4;
+    common.SerializedObject payload = 4;
 
     /* Any meta data entries providing contextual information back to the dispatcher */
-    map<string, MetaDataValue> meta_data = 5;
+    map<string, common.MetaDataValue> meta_data = 5;
 
     /* Instructions for AxonServer when routing this Command Response Message */
-    repeated ProcessingInstruction processing_instructions = 6;
+    repeated common.ProcessingInstruction processing_instructions = 6;
 
     /* The unique identifier of the Command Message for which this is the response */
     string request_identifier = 7;

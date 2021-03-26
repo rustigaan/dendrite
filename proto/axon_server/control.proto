@@ -39,10 +39,10 @@ message PlatformInboundInstruction {
         Heartbeat heartbeat = 3;
 
         /* Acknowledgement of previously sent instruction via outbound stream */
-        InstructionAck ack = 4;
+        common.InstructionAck ack = 4;
 
         /* The result of the execution of an instruction */
-        InstructionResult result = 6;
+        common.InstructionResult result = 6;
     }
 
     /* Instruction identifier. If this identifier is set, this instruction will be acknowledged via outbound stream */
@@ -86,7 +86,7 @@ message PlatformOutboundInstruction {
         Heartbeat heartbeat = 10;
 
         /* Acknowledgement of previously sent instruction via inbound stream */
-        InstructionAck ack = 11;
+        common.InstructionAck ack = 11;
     }
 
     /* Instruction identifier. If this identifier is set, this instruction will be acknowledged via inbound stream */

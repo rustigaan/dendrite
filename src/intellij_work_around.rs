@@ -1,5 +1,5 @@
 use prost::Message;
-use std::fmt::{Debug,Error,Formatter};
+use std::fmt::{Debug, Error, Formatter};
 
 pub struct Debuggable<'a>(Box<&'a dyn Message>);
 

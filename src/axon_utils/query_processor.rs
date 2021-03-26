@@ -1,24 +1,26 @@
-use anyhow::{Result,anyhow};
+use super::handler_registry::TheHandlerRegistry;
+use crate::axon_server::query::query_service_client::QueryServiceClient;
+use crate::axon_server::query::{
+    query_provider_inbound, query_provider_outbound, QueryProviderOutbound,
+};
+use crate::axon_server::query::{QueryComplete, QueryRequest, QueryResponse, QuerySubscription};
+use crate::axon_server::{FlowControl, SerializedObject};
+use crate::axon_utils::AxonServerHandle;
+use crate::intellij_work_around::Debuggable;
+use anyhow::{anyhow, Result};
 use async_stream::stream;
 use futures_core::stream::Stream;
-use log::{debug,error,warn};
+use log::{debug, error, warn};
 use std::collections::HashMap;
-use tokio::sync::mpsc::{Sender,Receiver, channel};
+use tokio::sync::mpsc::{channel, Receiver, Sender};
 use tonic::Request;
 use uuid::Uuid;
-use super::handler_registry::TheHandlerRegistry;
-use crate::axon_server::{FlowControl,SerializedObject};
-use crate::axon_server::query::{QueryComplete,QueryRequest,QueryResponse,QuerySubscription};
-use crate::axon_server::query::{QueryProviderOutbound,query_provider_inbound,query_provider_outbound};
-use crate::axon_server::query::query_service_client::QueryServiceClient;
-use crate::axon_utils::AxonServerHandle;
 
 /// Marker trait that describes the context for a query handler.
-pub trait QueryContext {
-}
+pub trait QueryContext {}
 
 /// Carries the result of a query from handler to processor.
-#[derive(Debug,Clone)]
+#[derive(Debug, Clone)]
 pub struct QueryResult {
     pub payload: Option<SerializedObject>,
 }
@@ -34,7 +36,7 @@ struct AxonQueryResult {
 pub async fn query_processor<Q: QueryContext + Send + Sync + Clone>(
     axon_server_handle: AxonServerHandle,
     query_context: Q,
-    query_handler_registry: TheHandlerRegistry<Q,QueryResult>
+    query_handler_registry: TheHandlerRegistry<Q, QueryResult>,
 ) -> Result<()> {
     debug!("Query processor: start");
 
@@ -58,13 +60,19 @@ pub async fn query_processor<Q: QueryContext + Send + Sync + Clone>(
     loop {
         match inbound.message().await {
             Ok(Some(inbound)) => {
-                debug!("Inbound message: {:?}", inbound);
+                debug!("Inbound message: {:?}", Debuggable::from(&inbound));
                 if let Some(query_provider_inbound::Request::Query(query)) = inbound.request {
                     let query_name = query.query.clone();
                     let mut result = Err(anyhow!("Could not find aggregate handler"));
                     if let Some(query_handle) = query_handler_registry.handlers.get(&query_name) {
-                        if let QueryRequest { payload: Some(serialized_object), .. } = query {
-                            result = query_handle.handle(serialized_object.data, query_context.clone()).await
+                        if let QueryRequest {
+                            payload: Some(serialized_object),
+                            ..
+                        } = query
+                        {
+                            result = query_handle
+                                .handle(serialized_object.data, query_context.clone())
+                                .await
                         }
                     }
 
@@ -76,7 +84,10 @@ pub async fn query_processor<Q: QueryContext + Send + Sync + Clone>(
 
                     let axon_query_result = AxonQueryResult {
                         message_identifier: query.message_identifier,
-                        result: result.unwrap_or(None).map(|query_result| query_result.payload).flatten(),
+                        result: result
+                            .unwrap_or(None)
+                            .map(|query_result| query_result.payload)
+                            .flatten(),
                     };
                     tx.send(axon_query_result).await.unwrap();
                 }
@@ -92,7 +103,11 @@ pub async fn query_processor<Q: QueryContext + Send + Sync + Clone>(
     }
 }
 
-fn create_output_stream(axon_server_handle: AxonServerHandle, query_box: Box<Vec<String>>, mut rx: Receiver<AxonQueryResult>) -> impl Stream<Item = QueryProviderOutbound> {
+fn create_output_stream(
+    axon_server_handle: AxonServerHandle,
+    query_box: Box<Vec<String>>,
+    mut rx: Receiver<AxonQueryResult>,
+) -> impl Stream<Item = QueryProviderOutbound> {
     stream! {
         let client_id = axon_server_handle.client_id.clone();
         debug!("Query processor: stream: start: {:?}", rx);

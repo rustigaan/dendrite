@@ -1,12 +1,13 @@
+use super::handler_registry::TheHandlerRegistry;
+use super::AxonServerHandle;
+use crate::axon_server::event::event_store_client::EventStoreClient;
+use crate::axon_server::event::{Event, EventWithToken, GetEventsRequest};
+use crate::intellij_work_around::Debuggable;
 use anyhow::Result;
 use async_stream::stream;
 use futures_core::stream::Stream;
 use log::debug;
-use tokio::sync::mpsc::{Sender,Receiver, channel};
-use super::AxonServerHandle;
-use super::handler_registry::TheHandlerRegistry;
-use crate::axon_server::event::{Event,EventWithToken,GetEventsRequest};
-use crate::axon_server::event::event_store_client::EventStoreClient;
+use tokio::sync::mpsc::{channel, Receiver, Sender};
 
 #[derive(Debug)]
 struct AxonEventProcessed {
@@ -28,7 +29,7 @@ pub trait TokenStore {
 pub async fn event_processor<Q: TokenStore + Send + Sync + Clone>(
     axon_server_handle: AxonServerHandle,
     query_model: Q,
-    event_handler_registry: TheHandlerRegistry<Q,Option<Q>>
+    event_handler_registry: TheHandlerRegistry<Q, Option<Q>>,
 ) -> Result<()> {
     let conn = axon_server_handle.conn.clone();
     let mut client = EventStoreClient::new(conn);
@@ -46,12 +47,29 @@ pub async fn event_processor<Q: TokenStore + Send + Sync + Clone>(
     let mut events = response.into_inner();
     loop {
         let event_with_token = events.message().await?;
-        debug!("Event with token: {:?}", event_with_token);
+        debug!(
+            "Event with token: {:?}",
+            event_with_token.as_ref().map(|e| Debuggable::from(e))
+        );
 
-        if let Some(EventWithToken { event: Some(event), token, ..}) = event_with_token {
-            if let Event { payload: Some(serialized_object), .. } = event {
-                if let Some(event_handler) = event_handler_registry.handlers.get(&serialized_object.r#type) {
-                    (event_handler).handle(serialized_object.data, query_model.clone()).await?;
+        if let Some(EventWithToken {
+            event: Some(event),
+            token,
+            ..
+        }) = event_with_token
+        {
+            if let Event {
+                payload: Some(serialized_object),
+                ..
+            } = event
+            {
+                if let Some(event_handler) = event_handler_registry
+                    .handlers
+                    .get(&serialized_object.r#type)
+                {
+                    (event_handler)
+                        .handle(serialized_object.data, query_model.clone())
+                        .await?;
                 }
             }
 
@@ -59,12 +77,17 @@ pub async fn event_processor<Q: TokenStore + Send + Sync + Clone>(
 
             tx.send(AxonEventProcessed {
                 message_identifier: event.message_identifier,
-            }).await?;
+            })
+            .await?;
         }
     }
 }
 
-fn create_output_stream(axon_server_handle: AxonServerHandle, initial_token: i64, mut rx: Receiver<AxonEventProcessed>) -> impl Stream<Item = GetEventsRequest> {
+fn create_output_stream(
+    axon_server_handle: AxonServerHandle,
+    initial_token: i64,
+    mut rx: Receiver<AxonEventProcessed>,
+) -> impl Stream<Item = GetEventsRequest> {
     stream! {
         debug!("Event Processor: stream: start: {:?}", rx);
 

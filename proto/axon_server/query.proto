@@ -32,7 +32,7 @@ message QueryProviderOutbound {
         QuerySubscription unsubscribe = 2;
 
         /* Grant permits to AxonServer to send a number of messages to the client */
-        FlowControl flow_control = 3;
+        common.FlowControl flow_control = 3;
 
         /* Sends a Response to a Query received via the inbound stream */
         QueryResponse query_response = 4;
@@ -44,7 +44,7 @@ message QueryProviderOutbound {
         SubscriptionQueryResponse subscription_query_response = 6;
 
         /* Acknowledgement of previously sent instruction via inbound stream */
-        InstructionAck ack = 7;
+        common.InstructionAck ack = 7;
     }
 
     /* Instruction identifier. If this identifier is set, this instruction will be acknowledged via inbound stream */
@@ -58,7 +58,7 @@ message QueryProviderInbound {
     oneof request {
 
         /* Acknowledgement of previously sent instruction via outbound stream */
-        InstructionAck ack = 1;
+        common.InstructionAck ack = 1;
 
         /* Represents an incoming Query, for which this component is expected to provide a response */
         QueryRequest query = 2;
@@ -94,16 +94,16 @@ message QueryRequest {
     int64 timestamp = 3;
 
     /* A payload accompanying the Query */
-    SerializedObject payload = 4;
+    common.SerializedObject payload = 4;
 
     /* Meta Data providing contextual information of the Query */
-    map<string, MetaDataValue> meta_data = 5;
+    map<string, common.MetaDataValue> meta_data = 5;
 
     /* An object describing the expectations of the Response Type */
-    SerializedObject response_type = 6;
+    common.SerializedObject response_type = 6;
 
     /* Any instructions for components Routing or Handling the Query */
-    repeated ProcessingInstruction processing_instructions = 7;
+    repeated common.ProcessingInstruction processing_instructions = 7;
 
     /* The unique identifier of the client instance dispatching the query */
     string client_id = 8;
@@ -121,16 +121,16 @@ message QueryResponse {
     string error_code = 2;
 
     /* A detailed description of the error, if any */
-    ErrorMessage error_message = 3;
+    common.ErrorMessage error_message = 3;
 
     /* The Payload of the Response Message */
-    SerializedObject payload = 4;
+    common.SerializedObject payload = 4;
 
     /* Any Meta Data describing the context of the Response Message */
-    map<string, MetaDataValue> meta_data = 5;
+    map<string, common.MetaDataValue> meta_data = 5;
 
     /* Any instructions for components Routing or Handling the Response Message */
-    repeated ProcessingInstruction processing_instructions = 6;
+    repeated common.ProcessingInstruction processing_instructions = 6;
 
     /* The unique identifier of the Query to which this is a response */
     string request_identifier = 7;
@@ -152,7 +152,7 @@ message SubscriptionQuery {
     QueryRequest query_request = 3;
 
     /* A description of the type of Object expected as Update Responses */
-    SerializedObject update_response_type = 4;
+    common.SerializedObject update_response_type = 4;
 }
 
 /* A message containing an Update of a Query Subscription Response */
@@ -162,10 +162,10 @@ message QueryUpdate {
     string message_identifier = 2;
 
     /* The object representing the Update */
-    SerializedObject payload = 3;
+    common.SerializedObject payload = 3;
 
     /* Meta Data providing contextual information of the Update */
-    map<string, MetaDataValue> meta_data = 4;
+    map<string, common.MetaDataValue> meta_data = 4;
 
     /* The identifier of the Client instance providing the Update */
     string client_id = 5;
@@ -177,7 +177,7 @@ message QueryUpdate {
     string error_code = 7;
 
     /* A detailed description of the error, if any */
-    ErrorMessage error_message = 8;
+    common.ErrorMessage error_message = 8;
 }
 
 /* Message indicating that all relevant Updates have been sent for a Subscription Query, and that no further Updates are available */
@@ -203,7 +203,7 @@ message QueryUpdateCompleteExceptionally {
     string error_code = 5;
 
     /* A detailed description of the error, if available */
-    ErrorMessage error_message = 6;
+    common.ErrorMessage error_message = 6;
 }
 
 /* Message describing possible interactions for a Subscription Query */
