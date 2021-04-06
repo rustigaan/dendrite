@@ -355,8 +355,9 @@ async fn handle_command<P: VecU8Message + Send + Sync + Clone + std::fmt::Debug 
                 .await?;
 
         if !events.is_empty() {
+            let aggregate_name = aggregate_definition.projection_name.clone();
             let aggregate_id = aggregate_id.ok_or(anyhow!("Missing aggregate id"))?;
-            store_events(client, &aggregate_id, &events, seq + 1).await?;
+            store_events(client, &aggregate_name, &aggregate_id, &events, seq + 1).await?;
         }
         Ok(Some(EmitEventsAndResponse {
             events: vec![],
@@ -400,7 +401,11 @@ async fn internal_handle_command<
     if let Some(ref aggregate_id) = aggregate_id {
         let mut next_seq: i64 = last_stored_seq + 1;
         for pair in clone_events(&mut aggregate_context.events) {
-            let event = encode_event(&pair, aggregate_id, next_seq)?;
+            let aggregate_name = aggregate_context
+                .aggregate_definition
+                .projection_name
+                .clone();
+            let event = encode_event(&pair, &aggregate_name, aggregate_id, next_seq)?;
             debug!("Replaying new event: {:?}", Debuggable::from(&event));
             if let Some(payload) = event.payload {
                 let sourcing_handler = aggregate_context
@@ -644,6 +649,7 @@ fn create_output_stream(
 
 async fn store_events<P: std::fmt::Debug>(
     client: &mut EventStoreClient<Channel>,
+    aggregate_name: &str,
     aggregate_id: &str,
     events: &Vec<(String, Box<dyn ApplicableTo<P>>)>,
     next_seq: i64,
@@ -654,7 +660,9 @@ async fn store_events<P: std::fmt::Debug>(
     let timestamp = now.duration_since(std::time::UNIX_EPOCH)?.as_millis() as i64;
     let event_messages: Vec<Event> = events
         .iter()
-        .map(move |e| encode_event_with_timestamp(e, aggregate_id, timestamp, next_seq))
+        .map(move |e| {
+            encode_event_with_timestamp(e, aggregate_name, aggregate_id, timestamp, next_seq)
+        })
         .collect();
     let request = Request::new(futures_util::stream::iter(event_messages));
     client.append_event(request).await?;
@@ -663,6 +671,7 @@ async fn store_events<P: std::fmt::Debug>(
 
 fn encode_event<P>(
     e: &(String, Box<dyn ApplicableTo<P>>),
+    aggregate_name: &str,
     aggregate_id: &str,
     next_seq: i64,
 ) -> Result<Event> {
@@ -670,6 +679,7 @@ fn encode_event<P>(
     let timestamp = now.duration_since(std::time::UNIX_EPOCH)?.as_millis() as i64;
     Ok(encode_event_with_timestamp(
         e,
+        aggregate_name,
         aggregate_id,
         timestamp,
         next_seq,
@@ -678,6 +688,7 @@ fn encode_event<P>(
 
 fn encode_event_with_timestamp<P>(
     e: &(String, Box<dyn ApplicableTo<P>>),
+    aggregate_name: &str,
     aggregate_id: &str,
     timestamp: i64,
     next_seq: i64,
@@ -696,7 +707,7 @@ fn encode_event_with_timestamp<P>(
         timestamp,
         aggregate_identifier: aggregate_id.to_string(),
         aggregate_sequence_number: next_seq,
-        aggregate_type: "Greeting".to_string(),
+        aggregate_type: aggregate_name.to_string(),
         payload: Some(e),
         meta_data: HashMap::new(),
         snapshot: false,
