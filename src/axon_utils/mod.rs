@@ -43,6 +43,8 @@ pub use handler_registry::empty_handler_registry;
 pub use handler_registry::{HandlerRegistry, TheHandlerRegistry};
 pub use query_processor::{query_processor, QueryContext, QueryResult};
 
+// pub(crate) use handler_registry::{Applicator, Deserializer, Handler, SendFtr, Wrapper};
+
 /// A handle for AxonServer.
 #[derive(Debug, Clone)]
 pub struct AxonServerHandle {
@@ -77,7 +79,7 @@ pub trait CommandSink {
     async fn send_command(
         &self,
         command_type: &str,
-        command: Box<&(dyn VecU8Message + Sync)>,
+        command: &(dyn VecU8Message + Sync),
     ) -> Result<Option<SerializedObject>>;
 }
 
@@ -87,7 +89,7 @@ pub trait QuerySink {
     async fn send_query<'a>(
         &self,
         query_type: &str,
-        query: Box<&(dyn VecU8Message + Sync)>,
+        query: &(dyn VecU8Message + Sync),
     ) -> Result<Vec<SerializedObject>>;
 }
 
@@ -110,10 +112,10 @@ where
     Self: VecU8Message + Send + Sync + std::fmt::Debug,
 {
     /// Applies this message to the given projection.
-    fn apply_to(self: &Self, projection: &mut Projection) -> Result<()>;
+    fn apply_to(self, projection: &mut Projection) -> Result<()>; // the self type is implicit
 
     /// Creates a box with a clone of this message.
-    fn box_clone(self: &Self) -> Box<dyn ApplicableTo<Projection>>;
+    fn box_clone(&self) -> Box<dyn ApplicableTo<Projection>>;
 }
 
 /// Describes a `Message` that is asynchronously applicable to a particular projection type.
@@ -123,7 +125,7 @@ where
     Self: VecU8Message + Send + Sync + std::fmt::Debug,
 {
     /// Applies this message to the given projection.
-    async fn apply_to(self: &Self, projection: &mut Projection) -> Result<()>;
+    async fn apply_to(self, projection: &mut Projection) -> Result<()>;
 
-    fn box_clone(self: &Self) -> Box<dyn AsyncApplicableTo<Projection>>;
+    fn box_clone(&self) -> Box<dyn AsyncApplicableTo<Projection>>;
 }

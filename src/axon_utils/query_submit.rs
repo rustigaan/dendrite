@@ -14,7 +14,7 @@ impl QuerySink for AxonServerHandle {
     async fn send_query<'a>(
         &self,
         query_type: &str,
-        query: Box<&(dyn VecU8Message + Sync)>,
+        query: &(dyn VecU8Message + Sync),
     ) -> Result<Vec<SerializedObject>> {
         debug!("Sending query: {:?}: {:?}", query_type, self.display_name);
         let mut buf = Vec::new();

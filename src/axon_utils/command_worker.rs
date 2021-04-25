@@ -49,6 +49,7 @@ pub fn emit_events_and_response<T: Message, P: VecU8Message + Send + Clone>(
 #[tonic::async_trait]
 pub trait AggregateContextTrait<P: VecU8Message + Send + Sync + Clone + 'static> {
     fn emit(&mut self, event_type: &str, event: Box<dyn ApplicableTo<P>>) -> Result<()>;
+
     async fn get_projection(&mut self, aggregate_id: &str) -> Result<P>;
 }
 
@@ -63,33 +64,37 @@ pub struct AggregateContext<P: VecU8Message + Send + Sync + Clone + 'static> {
 }
 
 #[tonic::async_trait]
-impl<P: VecU8Message + Send + Sync + Clone + Debug> AggregateContextTrait<P>
-    for AggregateContext<P>
+impl<P> AggregateContextTrait<P> for AggregateContext<P>
+where
+    P: VecU8Message + Send + Sync + Clone + Debug,
 {
     fn emit(&mut self, event_type: &str, event: Box<dyn ApplicableTo<P>>) -> Result<()> {
         self.events.push((event_type.to_string(), event));
         Ok(())
     }
+
     async fn get_projection(&mut self, aggregate_id: &str) -> Result<P> {
         let client = &mut self.event_store_client.clone();
         if let Some(ref existing_aggregate_id) = self.aggregate_id {
             if aggregate_id != existing_aggregate_id {
-                anyhow!(
+                return Err(anyhow!(
+                    // I assume you want to return here
                     "Inconsistent aggregate_id: {:?}: {:?}",
                     aggregate_id,
                     existing_aggregate_id
-                );
+                ));
             }
         } else {
             self.aggregate_id = Some(aggregate_id.to_string());
         }
         let aggregate_definition = self.aggregate_definition.deref();
+        let aggregate_id = aggregate_id.to_string();
         {
             let mut cache = aggregate_definition
                 .cache
                 .lock()
                 .map_err(|e| anyhow!(e.to_string()))?;
-            if let Some((s, p)) = cache.get(&aggregate_id.to_string()) {
+            if let Some((s, p)) = cache.get(&aggregate_id) {
                 debug!("Cache hit: {:?}: {:?}", aggregate_id, s);
                 self.projection = p.clone();
                 self.seq = *s;
@@ -106,8 +111,10 @@ impl<P: VecU8Message + Send + Sync + Clone + Debug> AggregateContextTrait<P>
                         .aggregate_definition
                         .sourcing_handler_registry
                         .get(&payload.r#type)
-                        .ok_or(anyhow!("Missing sourcing handler for {:?}", payload.r#type))?;
-                    if let Some(p) = (sourcing_handler)
+                        .ok_or_else(|| {
+                            anyhow!("Missing sourcing handler for {}", payload.r#type)
+                        })?;
+                    if let Some(p) = sourcing_handler
                         .handle(payload.data, self.projection.clone())
                         .await?
                     {
@@ -125,10 +132,7 @@ impl<P: VecU8Message + Send + Sync + Clone + Debug> AggregateContextTrait<P>
                     .cache
                     .lock()
                     .map_err(|e| anyhow!(e.to_string()))?;
-                cache.put(
-                    aggregate_id.to_string(),
-                    (self.seq, self.projection.clone()),
-                );
+                cache.put(aggregate_id, (self.seq, self.projection.clone()));
             }
         }
         Ok(self.projection.clone())
@@ -142,7 +146,7 @@ impl<P: VecU8Message + Send + Sync + Clone> Clone for AggregateContext<P> {
             let cloned_pair = (event_type.clone(), event.box_clone());
             cloned_events.push(cloned_pair);
         }
-        AggregateContext {
+        Self {
             aggregate_definition: self.aggregate_definition.clone(),
             event_store_client: self.event_store_client.clone(),
             events: cloned_events,
@@ -274,7 +278,7 @@ impl<P: VecU8Message + Send + Sync + Clone + std::fmt::Debug + 'static> Aggregat
     }
     fn command_names(&self) -> Vec<String> {
         let mut result = Vec::new();
-        for (command_name, _) in &self.command_handler_registry.handlers {
+        for command_name in self.command_handler_registry.handlers.keys() {
             result.push((*command_name).clone());
         }
         result
@@ -342,21 +346,20 @@ async fn handle_command<P: VecU8Message + Send + Sync + Clone + std::fmt::Debug 
 ) -> Result<Option<EmitEventsAndResponse>> {
     debug!("Incoming command: {:?}", Debuggable::from(command));
 
-    if let Some(command_handler) = get_command_handler(command.name.clone(), &aggregate_definition)?
-    {
+    if let Some(command_handler) = get_command_handler(&command.name, &aggregate_definition) {
         let data = command
             .payload
             .clone()
             .map(|p| p.data)
-            .ok_or(anyhow!("No payload data for: {:?}", command.name))?;
+            .ok_or_else(|| anyhow!("No payload data for: {:?}", command.name))?;
 
         let (result, events, aggregate_id, seq) =
-            internal_handle_command(&command_handler, data, aggregate_definition.clone(), client)
+            internal_handle_command(command_handler, data, aggregate_definition.clone(), client)
                 .await?;
 
         if !events.is_empty() {
             let aggregate_name = aggregate_definition.projection_name.clone();
-            let aggregate_id = aggregate_id.ok_or(anyhow!("Missing aggregate id"))?;
+            let aggregate_id = aggregate_id.ok_or_else(|| anyhow!("Missing aggregate id"))?;
             store_events(client, &aggregate_name, &aggregate_id, &events, seq + 1).await?;
         }
         Ok(Some(EmitEventsAndResponse {
@@ -371,8 +374,9 @@ async fn handle_command<P: VecU8Message + Send + Sync + Clone + std::fmt::Debug 
 async fn internal_handle_command<
     P: VecU8Message + Send + Sync + Clone + std::fmt::Debug + 'static,
 >(
-    command_handler: &Box<
-        dyn SubscriptionHandle<Arc<async_lock::Mutex<AggregateContext<P>>>, SerializedObject>,
+    command_handler: &dyn SubscriptionHandle<
+        Arc<async_lock::Mutex<AggregateContext<P>>>,
+        SerializedObject,
     >,
     data: Vec<u8>,
     aggregate_definition: Arc<AggregateDefinition<P>>,
@@ -395,12 +399,12 @@ async fn internal_handle_command<
     let result = command_handler
         .handle(data, aggregate_context.clone())
         .await?;
-    let aggregate_context = &mut aggregate_context.deref().lock().await;
+    let aggregate_context = &mut aggregate_context.lock().await;
     let last_stored_seq = aggregate_context.seq;
-    let aggregate_id = aggregate_context.aggregate_id.as_ref().map(|id| id.clone());
+    let aggregate_id = aggregate_context.aggregate_id.clone();
     if let Some(ref aggregate_id) = aggregate_id {
         let mut next_seq: i64 = last_stored_seq + 1;
-        for pair in clone_events(&mut aggregate_context.events) {
+        for pair in clone_events(&aggregate_context.events) {
             let aggregate_name = aggregate_context
                 .aggregate_definition
                 .projection_name
@@ -412,14 +416,14 @@ async fn internal_handle_command<
                     .aggregate_definition
                     .sourcing_handler_registry
                     .get(&payload.r#type)
-                    .ok_or(anyhow!("Missing sourcing handler for {:?}", payload.r#type))?;
+                    .ok_or_else(|| anyhow!("Missing sourcing handler for {:?}", payload.r#type))?;
                 if let Some(p) = (sourcing_handler)
                     .handle(payload.data, aggregate_context.projection.clone())
                     .await?
                 {
                     aggregate_context.projection = p;
                     aggregate_context.seq = next_seq;
-                    next_seq = next_seq + 1;
+                    next_seq += 1;
                 }
             }
         }
@@ -435,11 +439,11 @@ async fn internal_handle_command<
             );
         }
     }
-    let mut cloned_events = Vec::new();
-    for (event_type, event) in &aggregate_context.events {
-        let cloned_pair = (event_type.clone(), event.box_clone());
-        cloned_events.push(cloned_pair);
-    }
+    let cloned_events = aggregate_context
+        .events
+        .iter()
+        .map(|(s, e)| (s.clone(), e.box_clone()))
+        .collect();
     Ok((
         result,
         cloned_events,
@@ -449,7 +453,7 @@ async fn internal_handle_command<
 }
 
 fn clone_events<P>(
-    events: &mut Vec<(String, Box<dyn ApplicableTo<P>>)>,
+    events: &[(String, Box<dyn ApplicableTo<P>>)],
 ) -> Vec<(String, Box<dyn ApplicableTo<P>>)> {
     let mut cloned_events = Vec::new();
     for (event_type, event) in events {
@@ -458,18 +462,15 @@ fn clone_events<P>(
     cloned_events
 }
 
-fn get_command_handler<P: VecU8Message + Send + Sync + Clone + std::fmt::Debug + 'static>(
-    command_name: String,
-    aggregate_definition: &Arc<AggregateDefinition<P>>,
-) -> Result<
-    Option<
-        &Box<dyn SubscriptionHandle<Arc<async_lock::Mutex<AggregateContext<P>>>, SerializedObject>>,
-    >,
-> {
-    let handler = aggregate_definition
+type AggArc<P> = Arc<async_lock::Mutex<AggregateContext<P>>>;
+
+fn get_command_handler<'a, P: VecU8Message + Send + Sync + Clone + std::fmt::Debug + 'static>(
+    command_name: &str,
+    aggregate_definition: &'a Arc<AggregateDefinition<P>>,
+) -> Option<&'a dyn SubscriptionHandle<AggArc<P>, SerializedObject>> {
+    aggregate_definition
         .command_handler_registry
-        .get(&command_name);
-    Ok(handler)
+        .get(command_name)
 }
 
 /// Adds an event that can be applied to the command projection to be emitted to the result of a command handler.
@@ -501,11 +502,10 @@ pub async fn command_worker(
     let mut command_to_aggregate_mapping = HashMap::new();
     let mut command_vec: Vec<String> = vec![];
     aggregate_registry.register_commands(&mut command_vec, &mut command_to_aggregate_mapping);
-    let command_box = Box::new(command_vec);
 
     let (tx, rx): (Sender<AxonCommandResult>, Receiver<AxonCommandResult>) = channel(10);
 
-    let outbound = create_output_stream(axon_server_handle, command_box, rx);
+    let outbound = create_output_stream(axon_server_handle, command_vec, rx);
 
     debug!("Command worker: calling open_stream");
     let response = client.open_stream(Request::new(outbound)).await?;
@@ -552,19 +552,19 @@ pub async fn command_worker(
 
 fn create_output_stream(
     axon_server_handle: AxonServerHandle,
-    command_box: Box<Vec<String>>,
+    commands: Vec<String>,
     mut rx: Receiver<AxonCommandResult>,
 ) -> impl Stream<Item = CommandProviderOutbound> {
     stream! {
         debug!("Command worker: stream: start: {:?}", rx);
-        let client_id = axon_server_handle.client_id.clone();
-        let component_name = axon_server_handle.display_name.clone();
-        for command_name in command_box.iter() {
+        let client_id = axon_server_handle.client_id;
+        let component_name = axon_server_handle.display_name;
+        for command_name in commands {
             debug!("Command worker: stream: subscribe to command type: {:?}", command_name);
             let subscription_id = Uuid::new_v4();
             let subscription = CommandSubscription {
                 message_id: format!("{}", subscription_id),
-                command: command_name.to_string().clone(),
+                command: command_name,
                 client_id: client_id.clone(),
                 component_name: component_name.clone(),
                 load_factor: 100,
@@ -651,7 +651,7 @@ async fn store_events<P: std::fmt::Debug>(
     client: &mut EventStoreClient<Channel>,
     aggregate_name: &str,
     aggregate_id: &str,
-    events: &Vec<(String, Box<dyn ApplicableTo<P>>)>,
+    events: &[(String, Box<dyn ApplicableTo<P>>)],
     next_seq: i64,
 ) -> Result<()> {
     debug!("Store events: Client: {:?}: events: {:?}", client, events);

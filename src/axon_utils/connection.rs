@@ -9,7 +9,6 @@ use futures_core::stream::Stream;
 use log::{debug, error};
 use std::time;
 use tokio::time::sleep;
-use tonic;
 use tonic::transport::Channel;
 use tonic::{Request, Response};
 use uuid::Uuid;
@@ -63,8 +62,10 @@ async fn connect(url: &str, label: &str) -> Result<Option<Channel>> {
         None => return Ok(None),
     };
     let mut client = PlatformServiceClient::new(conn.clone());
-    let mut client_identification = ClientIdentification::default();
-    client_identification.component_name = format!("Rust client {}", &*label);
+    let client_identification = ClientIdentification {
+        component_name: format!("Rust client {}", label),
+        ..Default::default()
+    };
     let response = client
         .get_platform_server(Request::new(client_identification))
         .await
@@ -85,8 +86,6 @@ pub async fn platform_worker(axon_server_handle: AxonServerHandle, label: &str) 
     let conn = axon_server_handle.conn;
 
     let mut client = PlatformServiceClient::new(conn.clone());
-    let mut client_identification = ClientIdentification::default();
-    client_identification.component_name = format!("Rust client {}", &*label);
     let output = create_output_stream(label.to_string());
     let response = client.open_stream(Request::new(output)).await?;
     debug!("Stream response: {:?}", response);
@@ -114,8 +113,10 @@ pub async fn platform_worker(axon_server_handle: AxonServerHandle, label: &str) 
 fn create_output_stream(label: String) -> impl Stream<Item = PlatformInboundInstruction> {
     let interval = time::Duration::from_secs(300);
     stream! {
-        let mut client_identification = ClientIdentification::default();
-        client_identification.component_name = format!("Rust client {}", &label);
+        let client_identification = ClientIdentification {
+            component_name: format!("Rust client {}", &label),
+            ..Default::default()
+        };
         let instruction_id = Uuid::new_v4();
         let instruction = PlatformInboundInstruction {
             instruction_id: format!("{}", instruction_id),

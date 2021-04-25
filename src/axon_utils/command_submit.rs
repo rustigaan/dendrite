@@ -21,7 +21,7 @@ impl CommandSink for AxonServerHandle {
     async fn send_command(
         &self,
         command_type: &str,
-        command: Box<&(dyn VecU8Message + Sync)>,
+        command: &(dyn VecU8Message + Sync),
     ) -> Result<Option<SerializedObject>> {
         debug!(
             "Sending command: {:?}: {:?}",
@@ -36,33 +36,33 @@ impl CommandSink for AxonServerHandle {
             revision: "1".to_string(),
             data: buf,
         };
-        submit_command(self, &serialized_command).await
+        submit_command(self, serialized_command).await
     }
 }
 
 async fn submit_command(
     this: &AxonServerHandle,
-    message: &SerializedObject,
+    message: SerializedObject,
 ) -> Result<Option<SerializedObject>> {
-    debug!("Message: {:?}", Debuggable::from(message));
+    debug!("Message: {:?}", Debuggable::from(&message));
     let mut client = CommandServiceClient::new(this.conn.clone());
     debug!("Command Service Client: {:?}", client);
     let uuid = Uuid::new_v4();
     let command = Command {
-        message_identifier: format!("{}", uuid),
+        message_identifier: uuid.to_string(),
         name: message.r#type.clone(),
-        payload: Some(message.clone()),
+        payload: Some(message),
         client_id: this.client_id.clone(),
         component_name: this.display_name.clone(),
         meta_data: HashMap::new(),
         processing_instructions: Vec::new(),
         timestamp: 0,
     };
-    let response = client.dispatch(command).await?;
-    let response = response.into_inner();
+    let response = client.dispatch(command).await?.into_inner();
     debug!("Response: {:?}", Debuggable::from(&response));
     if let Some(error_message) = response.error_message {
         return Err(anyhow!(error_message.message));
+    } else {
+        Ok(response.payload)
     }
-    Ok(response.payload)
 }
