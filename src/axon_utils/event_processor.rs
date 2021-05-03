@@ -29,7 +29,7 @@ pub trait TokenStore {
 pub async fn event_processor<Q: TokenStore + Send + Sync + Clone>(
     axon_server_handle: AxonServerHandle,
     query_model: Q,
-    event_handler_registry: TheHandlerRegistry<Q, Option<Q>>,
+    event_handler_registry: TheHandlerRegistry<Q, Event, Option<Q>>,
 ) -> Result<()> {
     let conn = axon_server_handle.conn.clone();
     let mut client = EventStoreClient::new(conn);
@@ -58,27 +58,25 @@ pub async fn event_processor<Q: TokenStore + Send + Sync + Clone>(
             ..
         }) = event_with_token
         {
+            let message_identifier = event.message_identifier.clone();
             if let Event {
                 payload: Some(serialized_object),
                 ..
-            } = event
+            } = event.clone()
             {
                 if let Some(event_handler) = event_handler_registry
                     .handlers
                     .get(&serialized_object.r#type)
                 {
                     (event_handler)
-                        .handle(serialized_object.data, query_model.clone())
+                        .handle(serialized_object.data, event, query_model.clone())
                         .await?;
                 }
             }
 
             query_model.store_token(token).await;
 
-            tx.send(AxonEventProcessed {
-                message_identifier: event.message_identifier,
-            })
-            .await?;
+            tx.send(AxonEventProcessed { message_identifier }).await?;
         }
     }
 }
