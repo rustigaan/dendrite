@@ -48,7 +48,7 @@ pub fn emit_events_and_response<T: Message, P: VecU8Message + Send + Clone>(
 
 #[tonic::async_trait]
 pub trait AggregateContextTrait<P: VecU8Message + Send + Sync + Clone + 'static> {
-    fn emit(&mut self, event_type: &str, event: Box<dyn ApplicableTo<P,Event>>) -> Result<()>;
+    fn emit(&mut self, event_type: &str, event: Box<dyn ApplicableTo<P, Event>>) -> Result<()>;
 
     async fn get_projection(&mut self, aggregate_id: &str) -> Result<P>;
 }
@@ -355,9 +355,14 @@ async fn handle_command<P: VecU8Message + Send + Sync + Clone + std::fmt::Debug 
             .map(|p| p.data)
             .ok_or_else(|| anyhow!("No payload data for: {:?}", command.name))?;
 
-        let (result, events, aggregate_id, seq) =
-            internal_handle_command(command_handler, command, data, aggregate_definition.clone(), client)
-                .await?;
+        let (result, events, aggregate_id, seq) = internal_handle_command(
+            command_handler,
+            command,
+            data,
+            aggregate_definition.clone(),
+            client,
+        )
+        .await?;
 
         if !events.is_empty() {
             let aggregate_name = aggregate_definition.projection_name.clone();
@@ -461,8 +466,8 @@ async fn internal_handle_command<
 }
 
 fn clone_events<P>(
-    events: &[(String, Box<dyn ApplicableTo<P,Event>>)],
-) -> Vec<(String, Box<dyn ApplicableTo<P,Event>>)> {
+    events: &[(String, Box<dyn ApplicableTo<P, Event>>)],
+) -> Vec<(String, Box<dyn ApplicableTo<P, Event>>)> {
     let mut cloned_events = Vec::new();
     for (event_type, event) in events {
         cloned_events.push((event_type.clone(), event.box_clone()));
@@ -659,7 +664,7 @@ async fn store_events<P: std::fmt::Debug>(
     client: &mut EventStoreClient<Channel>,
     aggregate_name: &str,
     aggregate_id: &str,
-    events: &[(String, Box<dyn ApplicableTo<P,Event>>)],
+    events: &[(String, Box<dyn ApplicableTo<P, Event>>)],
     next_seq: i64,
 ) -> Result<()> {
     debug!("Store events: Client: {:?}: events: {:?}", client, events);

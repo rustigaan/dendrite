@@ -62,7 +62,12 @@ pub struct TheHandlerRegistry<P: Send, M, W: Clone> {
     pub handlers: HashMap<String, Box<dyn SubscriptionHandle<P, M, W>>>,
 }
 
-impl<P: Send + Clone, M: Clone + Send, W: Clone + 'static> HandlerRegistry<P, M, W> for TheHandlerRegistry<P, M, W> {
+impl<P, M, W> HandlerRegistry<P, M, W> for TheHandlerRegistry<P, M, W>
+where
+    P: Send + Clone,
+    M: Clone + Send,
+    W: Clone + 'static,
+{
     fn register(&mut self, applicator: Applicator<Self>) -> Result<()> {
         applicator(self)
     }
@@ -165,7 +170,7 @@ impl<P: Send + Clone, M: Clone + Send, W: Clone + 'static> HandlerRegistry<P, M,
 
 /// Creates an empty handler registry for a type of projection and a type of return values that can
 /// be populated with SubscriptionHandles.
-pub fn empty_handler_registry<P: Send, W: Clone>() -> TheHandlerRegistry<P, M, W> {
+pub fn empty_handler_registry<P: Send, M: Send + Clone, W: Clone>() -> TheHandlerRegistry<P, M, W> {
     TheHandlerRegistry {
         handlers: HashMap::new(),
     }
