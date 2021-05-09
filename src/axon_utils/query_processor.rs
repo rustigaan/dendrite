@@ -36,7 +36,7 @@ struct AxonQueryResult {
 pub async fn query_processor<Q: QueryContext + Send + Sync + Clone>(
     axon_server_handle: AxonServerHandle,
     query_context: Q,
-    query_handler_registry: TheHandlerRegistry<Q, QueryResult>,
+    query_handler_registry: TheHandlerRegistry<Q, QueryRequest, QueryResult>,
 ) -> Result<()> {
     debug!("Query processor: start");
 
@@ -64,10 +64,14 @@ pub async fn query_processor<Q: QueryContext + Send + Sync + Clone>(
                         if let QueryRequest {
                             payload: Some(serialized_object),
                             ..
-                        } = query
+                        } = &query
                         {
                             result = query_handle
-                                .handle(serialized_object.data, query_context.clone())
+                                .handle(
+                                    serialized_object.data.clone(),
+                                    query.clone(),
+                                    query_context.clone(),
+                                )
                                 .await
                         }
                     }

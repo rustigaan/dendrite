@@ -48,7 +48,7 @@ pub fn emit_events_and_response<T: Message, P: VecU8Message + Send + Clone>(
 
 #[tonic::async_trait]
 pub trait AggregateContextTrait<P: VecU8Message + Send + Sync + Clone + 'static> {
-    fn emit(&mut self, event_type: &str, event: Box<dyn ApplicableTo<P>>) -> Result<()>;
+    fn emit(&mut self, event_type: &str, event: Box<dyn ApplicableTo<P,Event>>) -> Result<()>;
 
     async fn get_projection(&mut self, aggregate_id: &str) -> Result<P>;
 }
@@ -57,7 +57,7 @@ pub trait AggregateContextTrait<P: VecU8Message + Send + Sync + Clone + 'static>
 pub struct AggregateContext<P: VecU8Message + Send + Sync + Clone + 'static> {
     aggregate_definition: Arc<AggregateDefinition<P>>,
     event_store_client: EventStoreClient<Channel>,
-    events: Vec<(String, Box<dyn ApplicableTo<P>>)>,
+    events: Vec<(String, Box<dyn ApplicableTo<P, Event>>)>,
     pub aggregate_id: Option<String>,
     projection: P,
     seq: i64,
@@ -68,7 +68,7 @@ impl<P> AggregateContextTrait<P> for AggregateContext<P>
 where
     P: VecU8Message + Send + Sync + Clone + Debug,
 {
-    fn emit(&mut self, event_type: &str, event: Box<dyn ApplicableTo<P>>) -> Result<()> {
+    fn emit(&mut self, event_type: &str, event: Box<dyn ApplicableTo<P, Event>>) -> Result<()> {
         self.events.push((event_type.to_string(), event));
         Ok(())
     }
@@ -106,7 +106,8 @@ where
             let events = query_events_from_client(client, &aggregate_id).await?;
             for event in events {
                 debug!("Replaying event: {:?}", Debuggable::from(&event));
-                if let Some(payload) = event.payload {
+                let event_seq = event.aggregate_sequence_number;
+                if let Some(payload) = event.payload.clone() {
                     let sourcing_handler = self
                         .aggregate_definition
                         .sourcing_handler_registry
@@ -115,13 +116,13 @@ where
                             anyhow!("Missing sourcing handler for {}", payload.r#type)
                         })?;
                     if let Some(p) = sourcing_handler
-                        .handle(payload.data, self.projection.clone())
+                        .handle(payload.data, event, self.projection.clone())
                         .await?
                     {
                         self.projection = p;
                     }
                 }
-                self.seq = event.aggregate_sequence_number;
+                self.seq = event_seq;
             }
             debug!(
                 "Restored projection: {:?}: {:?}",
@@ -171,7 +172,7 @@ pub struct EmitEventsAndResponse {
 /// The events have to be applicable to the projection type.
 #[derive(Debug)]
 pub struct EmitApplicableEventsAndResponse<P> {
-    events: Vec<(String, Box<dyn ApplicableTo<P>>)>,
+    events: Vec<(String, Box<dyn ApplicableTo<P, Event>>)>,
     response: Option<SerializedObject>,
 }
 
@@ -297,8 +298,8 @@ pub struct AggregateDefinition<P: VecU8Message + Send + Sync + Clone + 'static> 
     cache: Arc<Mutex<LruCache<String, (i64, P)>>>,
     empty_projection: ProjectionFactory<P>,
     command_handler_registry:
-        TheHandlerRegistry<Arc<async_lock::Mutex<AggregateContext<P>>>, SerializedObject>,
-    sourcing_handler_registry: TheHandlerRegistry<P, P>,
+        TheHandlerRegistry<Arc<async_lock::Mutex<AggregateContext<P>>>, Command, SerializedObject>,
+    sourcing_handler_registry: TheHandlerRegistry<P, Event, P>,
 }
 
 pub struct ProjectionFactory<P> {
@@ -322,9 +323,10 @@ pub fn create_aggregate_definition<P: VecU8Message + Send + Sync + Clone>(
     empty_projection: Box<fn() -> P>,
     command_handler_registry: TheHandlerRegistry<
         Arc<async_lock::Mutex<AggregateContext<P>>>,
+        Command,
         SerializedObject,
     >,
-    sourcing_handler_registry: TheHandlerRegistry<P, P>,
+    sourcing_handler_registry: TheHandlerRegistry<P, Event, P>,
 ) -> AggregateDefinition<P> {
     let cache = Arc::new(Mutex::new(LruCache::new(1024)));
     let empty_projection = ProjectionFactory {
@@ -354,7 +356,7 @@ async fn handle_command<P: VecU8Message + Send + Sync + Clone + std::fmt::Debug 
             .ok_or_else(|| anyhow!("No payload data for: {:?}", command.name))?;
 
         let (result, events, aggregate_id, seq) =
-            internal_handle_command(command_handler, data, aggregate_definition.clone(), client)
+            internal_handle_command(command_handler, command, data, aggregate_definition.clone(), client)
                 .await?;
 
         if !events.is_empty() {
@@ -376,14 +378,16 @@ async fn internal_handle_command<
 >(
     command_handler: &dyn SubscriptionHandle<
         Arc<async_lock::Mutex<AggregateContext<P>>>,
+        Command,
         SerializedObject,
     >,
+    command: &Command,
     data: Vec<u8>,
     aggregate_definition: Arc<AggregateDefinition<P>>,
     event_store_client: &mut EventStoreClient<Channel>,
 ) -> Result<(
     Option<SerializedObject>,
-    Vec<(String, Box<dyn ApplicableTo<P>>)>,
+    Vec<(String, Box<dyn ApplicableTo<P, Event>>)>,
     Option<String>,
     i64,
 )> {
@@ -397,7 +401,7 @@ async fn internal_handle_command<
         seq: -1,
     }));
     let result = command_handler
-        .handle(data, aggregate_context.clone())
+        .handle(data, command.clone(), aggregate_context.clone())
         .await?;
     let aggregate_context = &mut aggregate_context.lock().await;
     let last_stored_seq = aggregate_context.seq;
@@ -411,14 +415,18 @@ async fn internal_handle_command<
                 .clone();
             let event = encode_event(&pair, &aggregate_name, aggregate_id, next_seq)?;
             debug!("Replaying new event: {:?}", Debuggable::from(&event));
-            if let Some(payload) = event.payload {
+            if let Some(payload) = event.payload.as_ref() {
                 let sourcing_handler = aggregate_context
                     .aggregate_definition
                     .sourcing_handler_registry
                     .get(&payload.r#type)
                     .ok_or_else(|| anyhow!("Missing sourcing handler for {:?}", payload.r#type))?;
                 if let Some(p) = (sourcing_handler)
-                    .handle(payload.data, aggregate_context.projection.clone())
+                    .handle(
+                        payload.data.clone(),
+                        event,
+                        aggregate_context.projection.clone(),
+                    )
                     .await?
                 {
                     aggregate_context.projection = p;
@@ -453,8 +461,8 @@ async fn internal_handle_command<
 }
 
 fn clone_events<P>(
-    events: &[(String, Box<dyn ApplicableTo<P>>)],
-) -> Vec<(String, Box<dyn ApplicableTo<P>>)> {
+    events: &[(String, Box<dyn ApplicableTo<P,Event>>)],
+) -> Vec<(String, Box<dyn ApplicableTo<P,Event>>)> {
     let mut cloned_events = Vec::new();
     for (event_type, event) in events {
         cloned_events.push((event_type.clone(), event.box_clone()));
@@ -467,7 +475,7 @@ type AggArc<P> = Arc<async_lock::Mutex<AggregateContext<P>>>;
 fn get_command_handler<'a, P: VecU8Message + Send + Sync + Clone + std::fmt::Debug + 'static>(
     command_name: &str,
     aggregate_definition: &'a Arc<AggregateDefinition<P>>,
-) -> Option<&'a dyn SubscriptionHandle<AggArc<P>, SerializedObject>> {
+) -> Option<&'a dyn SubscriptionHandle<AggArc<P>, Command, SerializedObject>> {
     aggregate_definition
         .command_handler_registry
         .get(command_name)
@@ -477,7 +485,7 @@ fn get_command_handler<'a, P: VecU8Message + Send + Sync + Clone + std::fmt::Deb
 pub fn emit<P: VecU8Message + Send + Clone>(
     holder: &mut EmitApplicableEventsAndResponse<P>,
     type_name: &str,
-    event: Box<dyn ApplicableTo<P>>,
+    event: Box<dyn ApplicableTo<P, Event>>,
 ) -> Result<()> {
     holder.events.push((type_name.to_string(), event));
     Ok(())
@@ -651,7 +659,7 @@ async fn store_events<P: std::fmt::Debug>(
     client: &mut EventStoreClient<Channel>,
     aggregate_name: &str,
     aggregate_id: &str,
-    events: &[(String, Box<dyn ApplicableTo<P>>)],
+    events: &[(String, Box<dyn ApplicableTo<P,Event>>)],
     next_seq: i64,
 ) -> Result<()> {
     debug!("Store events: Client: {:?}: events: {:?}", client, events);
@@ -670,7 +678,7 @@ async fn store_events<P: std::fmt::Debug>(
 }
 
 fn encode_event<P>(
-    e: &(String, Box<dyn ApplicableTo<P>>),
+    e: &(String, Box<dyn ApplicableTo<P, Event>>),
     aggregate_name: &str,
     aggregate_id: &str,
     next_seq: i64,
@@ -687,7 +695,7 @@ fn encode_event<P>(
 }
 
 fn encode_event_with_timestamp<P>(
-    e: &(String, Box<dyn ApplicableTo<P>>),
+    e: &(String, Box<dyn ApplicableTo<P, Event>>),
     aggregate_name: &str,
     aggregate_id: &str,
     timestamp: i64,

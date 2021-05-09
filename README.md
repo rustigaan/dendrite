@@ -42,6 +42,7 @@ Like [archetype-go-axon](https://github.com/dendrite2go/archetype-go-axon) it ca
 As well as:
 
 * In-memory caching of aggregate projections
+* Access to Axon Command-, Event-, QueryRequest-message in body of handlers.
 
 Now it would be nice to:
 
