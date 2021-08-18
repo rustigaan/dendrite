@@ -673,8 +673,9 @@ async fn store_events<P: std::fmt::Debug>(
     let timestamp = now.duration_since(std::time::UNIX_EPOCH)?.as_millis() as i64;
     let event_messages: Vec<Event> = events
         .iter()
+        .zip(next_seq..)
         .map(move |e| {
-            encode_event_with_timestamp(e, aggregate_name, aggregate_id, timestamp, next_seq)
+            encode_event_with_timestamp(e.0, aggregate_name, aggregate_id, timestamp, e.1)
         })
         .collect();
     let request = Request::new(futures_util::stream::iter(event_messages));
