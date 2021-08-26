@@ -1,6 +1,6 @@
 [package]
 name = "dendrite"
-version = "0.6.1"
+version = "0.6.2"
 authors = ["Jeroen van Maanen"]
 edition = "2018"
 description = "Event Sourcing and CQRS in Rust with AxonServer."

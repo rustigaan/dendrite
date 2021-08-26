@@ -16,8 +16,8 @@ use uuid::Uuid;
 /// Polls AxonServer until it is available and ready.
 pub async fn wait_for_server(host: &str, port: u32, label: &str) -> Result<AxonServerHandle> {
     let url = format!("http://{}:{}", host, port);
-    let conn = wait_for_connection(&url, label).await;
     let client_id = format!("{}", Uuid::new_v4());
+    let conn = wait_for_connection(&url, label, &client_id).await;
     debug!(
         "Axon server handle: {:?}: {:?}: {:?}",
         label, client_id, conn
@@ -30,10 +30,10 @@ pub async fn wait_for_server(host: &str, port: u32, label: &str) -> Result<AxonS
     Ok(connection)
 }
 
-async fn wait_for_connection(url: &str, label: &str) -> Channel {
+async fn wait_for_connection(url: &str, label: &str, client_id: &str) -> Channel {
     let interval = time::Duration::from_secs(1);
     loop {
-        if let Some(conn) = try_to_connect(url, label).await {
+        if let Some(conn) = try_to_connect(url, label, client_id).await {
             return conn;
         }
         sleep(interval).await;
@@ -41,8 +41,8 @@ async fn wait_for_connection(url: &str, label: &str) -> Channel {
     }
 }
 
-async fn try_to_connect(url: &str, label: &str) -> Option<Channel> {
-    connect(url, label)
+async fn try_to_connect(url: &str, label: &str, client_id: &str) -> Option<Channel> {
+    connect(url, label, client_id)
         .await
         .map_err(|e| {
             debug!("Error while trying to connect to AxonServer: {:?}", e);
@@ -51,7 +51,7 @@ async fn try_to_connect(url: &str, label: &str) -> Option<Channel> {
         .flatten()
 }
 
-async fn connect(url: &str, label: &str) -> Result<Option<Channel>> {
+async fn connect(url: &str, label: &str, client_id: &str) -> Result<Option<Channel>> {
     let conn = tonic::transport::Endpoint::from_shared(url.to_string())?
         .connect()
         .await
@@ -64,6 +64,7 @@ async fn connect(url: &str, label: &str) -> Result<Option<Channel>> {
     let mut client = PlatformServiceClient::new(conn.clone());
     let client_identification = ClientIdentification {
         component_name: format!("Rust client {}", label),
+        client_id: client_id.to_string(),
         ..Default::default()
     };
     let response = client
@@ -84,9 +85,10 @@ async fn connect(url: &str, label: &str) -> Result<Option<Channel>> {
 pub async fn platform_worker(axon_server_handle: AxonServerHandle, label: &str) -> Result<()> {
     debug!("Platform worker: start");
     let conn = axon_server_handle.conn;
+    let client_id = axon_server_handle.client_id;
 
     let mut client = PlatformServiceClient::new(conn.clone());
-    let output = create_output_stream(label.to_string());
+    let output = create_output_stream(label.to_string(), &client_id);
     let response = client.open_stream(Request::new(output)).await?;
     debug!("Stream response: {:?}", response);
 
@@ -110,11 +112,16 @@ pub async fn platform_worker(axon_server_handle: AxonServerHandle, label: &str) 
     }
 }
 
-fn create_output_stream(label: String) -> impl Stream<Item = PlatformInboundInstruction> {
+fn create_output_stream(
+    label: String,
+    client_id: &str,
+) -> impl Stream<Item = PlatformInboundInstruction> {
     let interval = time::Duration::from_secs(300);
+    let client_id = client_id.to_string().clone();
     stream! {
         let client_identification = ClientIdentification {
             component_name: format!("Rust client {}", &label),
+            client_id: client_id,
             ..Default::default()
         };
         let instruction_id = Uuid::new_v4();
