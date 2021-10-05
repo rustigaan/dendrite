@@ -5,7 +5,7 @@
 /dendrite/present/node_modules/
 /dendrite/present/build/
 
-/dendrite/target/
+/*/target/
 **/*.rs.bk
 
 /.idea/
