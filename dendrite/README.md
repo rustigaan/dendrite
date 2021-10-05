@@ -2,7 +2,7 @@
 
 A [Rust](https://www.rust-lang.org) library to connect to [AxonServer](https://axoniq.io/product-overview/axon-server).
 
-See the GitHub project [dendrite2go/archetype-rust-axon](https://github.com/dendrite2go/archetype-rust-axon) for an example of how to use this code.
+See the GitHub project [rustigaan/archetype-rust-axon](https://github.com/rustigaan/archetype-rust-axon) for an example of how to use this code.
 
 ## Core concepts
 
