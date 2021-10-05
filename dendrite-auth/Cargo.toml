@@ -1,0 +1,32 @@
+[package]
+name = "dendrite_auth"
+version = "0.4.2"
+authors = ["Jeroen van Maanen"]
+edition = "2018"
+description = "Support for JWT based authentication / authorization in rustic-dendrite"
+readme = "README.md"
+homepage = "https://github.com/dendrite2go/rustic-dendrite-auth"
+repository = "https://github.com/dendrite2go/rustic-dendrite-auth"
+license = "MIT"
+keywords = ["event-sourcing", "CQRS", "AxonServer", "JWT"]
+categories = ["web-programming"]
+include = ["/src/**/*", "/proto/**/*", "/Cargo.*", "/build.rs", "/README.md", "/LICENSE"]
+
+[dependencies]
+anyhow = "^1.0"
+dendrite = "0.6.2" # { path = "../rustic-dendrite" } #
+dendrite_macros = "0.3.0" # { path = "../rustic-dendrite-macros" } #
+jwt = "^0.13"
+lazy_static = "^1.4"
+log = "^0.4"
+pem = "^0.8"
+prost = "^0.7"
+rand_core = "^0.5"
+rsa = "^0.3"
+serde_json = "~1"
+sha2 = "0.9.2"
+sshkeys = "^0.3"
+tonic = "^0.4"
+
+[build-dependencies]
+tonic-build = "^0.4"

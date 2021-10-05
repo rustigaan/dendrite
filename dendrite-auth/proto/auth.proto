@@ -1,0 +1,45 @@
+syntax = "proto3";
+package dendrite_config;
+option go_package = "src/pkg/grpc/dendrite_config";
+
+message TrustedKeyAddedEvent {
+    PublicKey publicKey = 1;
+}
+
+message TrustedKeyRemovedEvent {
+    string name = 1;
+}
+
+message KeyManagerAddedEvent {
+    PublicKey publicKey = 1;
+}
+
+message KeyManagerRemovedEvent {
+    string name = 1;
+}
+
+message CredentialsAddedEvent {
+    Credentials credentials = 1;
+}
+
+message CredentialsRemovedEvent {
+    string identifier = 1;
+}
+
+message PublicKey {
+    string publicKey = 1;
+    string name = 2;
+}
+
+message Credentials {
+    string identifier = 1;
+    string secret = 2;
+    Signature signature = 3;
+}
+
+message Signature {
+    string format = 1;
+    bytes blob = 2;
+    bytes rest = 3;
+    string signatureName = 4;
+}
