@@ -4,7 +4,7 @@ set -e
 
 BIN="$(cd "$(dirname "$0")" ; pwd)"
 
-. "${BIN}/verbose.sh"
+. "${BIN}/lib-verbose.sh"
 
 SED_EXT=-r
 case "$(uname)" in

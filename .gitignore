@@ -1,11 +1,12 @@
 *-local.*
-/dendrite/docker/docker-compose.yml
+/docker/docker-compose.yml
 
 /dendrite/present/src/grpc/
 /dendrite/present/node_modules/
 /dendrite/present/build/
 
 /*/target/
+/target
 **/*.rs.bk
 
 /.idea/

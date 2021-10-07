@@ -1,4 +1,4 @@
-# Rustic Dendrite
+# Dendrite
 
 A Rust library to connect to AxonServer.
 

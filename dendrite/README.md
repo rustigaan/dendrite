@@ -1,4 +1,4 @@
-# Rustic Dendrite
+# Dendrite
 
 A [Rust](https://www.rust-lang.org) library to connect to [AxonServer](https://axoniq.io/product-overview/axon-server).
 
@@ -15,9 +15,9 @@ See the GitHub project [rustigaan/archetype-rust-axon](https://github.com/rustig
 
 * [dendrite on crates.io](https://crates.io/crates/dendrite)
 * [dendrite on docs.rs](https://docs.rs/dendrite)
-* [rustic-dendrite on GitHub](https://github.com/dendrite2go/rustic-dendrite)
+* [dendrite on GitHub](https://github.com/rustigaan/dendrite)
 
-The project [rustic-dendrite-macros](https://github.com/dendrite2go/rustic-dendrite-macros) provides macros that makes working with the dendrite crate more ergonomic.
+The crate [dendrite-macros](/dendrite-macros/README.md) provides macros that makes working with the dendrite crate more ergonomic.
 
 This project is a sibling of [dendrite2go](https://github.com/dendrite2go/dendrite) and [archetype-go-axon](https://github.com/dendrite2go/archetype-go-axon), but for the Rust programming language.
 
