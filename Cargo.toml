@@ -1,5 +1,7 @@
 [workspace]
 
 members = [
-  "dendrite"
+  "dendrite",
+  "dendrite-auth",
+  "dendrite-macros"
 ]

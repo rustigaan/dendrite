@@ -6,7 +6,7 @@ BIN="$(cd "$(dirname "$0")" ; pwd)"
 PROJECT="$(dirname "${BIN}")"
 
 declare -a FLAGS_INHERIT
-. "${BIN}/verbose.sh"
+. "${BIN}/lib-verbose.sh"
 
 info "PROJECT=[${PROJECT}]"
 
