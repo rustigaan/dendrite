@@ -180,40 +180,9 @@ dependencies = [
 name = "dendrite"
 version = "0.6.2"
 dependencies = [
- "anyhow",
- "async-lock",
- "async-stream",
- "bytes",
- "futures-core",
- "futures-util",
- "log",
- "lru",
- "prost",
- "tokio",
- "tonic",
- "tonic-build",
- "uuid",
-]
-
-[[package]]
-name = "dendrite"
-version = "0.6.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "83fc783567848765abdf73bb4ae8b87ed4aa150733cfd4a098a5eade131f3011"
-dependencies = [
- "anyhow",
- "async-lock",
- "async-stream",
- "bytes",
- "futures-core",
- "futures-util",
- "log",
- "lru",
- "prost",
- "tokio",
- "tonic",
- "tonic-build",
- "uuid",
+ "dendrite_auth",
+ "dendrite_lib",
+ "dendrite_macros",
 ]
 
 [[package]]
@@ -221,8 +190,8 @@ name = "dendrite_auth"
 version = "0.4.2"
 dependencies = [
  "anyhow",
- "dendrite 0.6.2 (registry+https://github.com/rust-lang/crates.io-index)",
- "dendrite_macros 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "dendrite_lib",
+ "dendrite_macros",
  "jwt",
  "lazy_static",
  "log",
@@ -238,21 +207,27 @@ dependencies = [
 ]
 
 [[package]]
-name = "dendrite_macros"
-version = "0.3.0"
+name = "dendrite_lib"
+version = "0.6.2"
 dependencies = [
  "anyhow",
+ "async-lock",
+ "async-stream",
+ "bytes",
+ "futures-core",
+ "futures-util",
  "log",
- "proc-macro2",
- "quote",
- "syn",
+ "lru",
+ "prost",
+ "tokio",
+ "tonic",
+ "tonic-build",
+ "uuid",
 ]
 
 [[package]]
 name = "dendrite_macros"
 version = "0.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6d46deaa32ba4c2bd10f7390000309b2a393d241a5203a84dbec85f0a16a7a2b"
 dependencies = [
  "anyhow",
  "log",

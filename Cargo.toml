@@ -2,6 +2,7 @@
 
 members = [
   "dendrite",
+  "dendrite-lib",
   "dendrite-auth",
   "dendrite-macros"
 ]

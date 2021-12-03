@@ -38,23 +38,23 @@ fn impl_event_handler(ast: &ItemFn) -> TokenStream {
     let event_type_literal = LitStr::new(&event_type_ident.to_string(), event_type_ident.span());
 
     let gen = quote! {
-        use ::dendrite::axon_utils::HandlerRegistry as #ident_tmp;
+        use dendrite::axon_utils::HandlerRegistry as #ident_tmp;
 
         #[tonic::async_trait]
-        impl AsyncApplicableTo<#query_model_type, ::dendrite::axon_server::event::Event> for #event_type {
+        impl AsyncApplicableTo<#query_model_type, dendrite::axon_server::event::Event> for #event_type {
             async fn apply_to(self, #metadata_arg, #query_model_arg_name: &mut #query_model_type) -> Result<()> {
                 let #event_arg_name = self;
                 debug!("Event type: {:?}", #event_type_literal);
                 #block
             }
 
-            fn box_clone(&self) -> Box<dyn AsyncApplicableTo<#query_model_type,::dendrite::axon_server::event::Event>> {
+            fn box_clone(&self) -> Box<dyn AsyncApplicableTo<#query_model_type,dendrite::axon_server::event::Event>> {
                 Box::from(#event_type::clone(self))
             }
         }
 
         // register event handler with registry
-        fn #ident(registry: &mut ::dendrite::axon_utils::TheHandlerRegistry<#query_model_type,::dendrite::axon_server::event::Event,Option<#query_model_type>>) -> Result<()> {
+        fn #ident(registry: &mut dendrite::axon_utils::TheHandlerRegistry<#query_model_type,dendrite::axon_server::event::Event,Option<#query_model_type>>) -> Result<()> {
             registry.insert(
                 #event_type_literal,
                 &#event_type::decode,
@@ -109,10 +109,10 @@ fn impl_command_handler(ast: &ItemFn) -> TokenStream {
     let output_type_literal = LitStr::new(&output_type_ident.to_string(), output_type_ident.span());
 
     let gen = quote! {
-        use ::dendrite::axon_utils::HandlerRegistry as #ident_tmp;
+        use dendrite::axon_utils::HandlerRegistry as #ident_tmp;
 
         // register command handler with registry
-        fn #ident(registry: &mut ::dendrite::axon_utils::TheHandlerRegistry<std::sync::Arc<async_lock::Mutex<#context_elem_type>>,::dendrite::axon_server::command::Command,::dendrite::axon_utils::SerializedObject>) -> Result<()> {
+        fn #ident(registry: &mut dendrite::axon_utils::TheHandlerRegistry<std::sync::Arc<async_lock::Mutex<#context_elem_type>>,dendrite::axon_server::command::Command,dendrite::axon_utils::SerializedObject>) -> Result<()> {
             registry.insert_with_output(
                 #command_type_literal,
                 &#command_type::decode,
@@ -124,7 +124,7 @@ fn impl_command_handler(ast: &ItemFn) -> TokenStream {
             let mut #context_arg_name = #context_arg_name.deref().lock().await;
             debug!("Event type: {:?}", #command_type_literal);
             let result : #output_type = #block;
-            let result: Option<Result<SerializedObject>> = result?.map(|r| ::dendrite::axon_utils::axon_serialize(#output_type_literal, &r));
+            let result: Option<Result<SerializedObject>> = result?.map(|r| dendrite::axon_utils::axon_serialize(#output_type_literal, &r));
             match result {
                 Some(Ok(serialized)) => Ok(Some(serialized)),
                 Some(Err(e)) => Err(e),
@@ -166,7 +166,7 @@ fn impl_event_sourcing_handler(ast: &ItemFn) -> TokenStream {
 
     let gen = quote! {
         #[tonic::async_trait]
-        impl ::dendrite::axon_utils::ApplicableTo<#projection_type,::dendrite::axon_server::event::Event> for #event_type {
+        impl dendrite::axon_utils::ApplicableTo<#projection_type,dendrite::axon_server::event::Event> for #event_type {
             fn apply_to(self, #metadata_arg, #projection_arg_name: &mut #projection_type) -> Result<()> {
                 let #event_arg_name = self;
                 debug!("Event type: {:?}", #event_type_literal);
@@ -174,13 +174,13 @@ fn impl_event_sourcing_handler(ast: &ItemFn) -> TokenStream {
                 Ok(())
             }
 
-            fn box_clone(&self) -> Box<dyn ::dendrite::axon_utils::ApplicableTo<#projection_type,::dendrite::axon_server::event::Event>> {
+            fn box_clone(&self) -> Box<dyn dendrite::axon_utils::ApplicableTo<#projection_type,dendrite::axon_server::event::Event>> {
                 Box::from(#event_type::clone(self))
             }
         }
 
         // register event handler with registry
-        fn #ident(registry: &mut ::dendrite::axon_utils::TheHandlerRegistry<#projection_type,::dendrite::axon_server::event::Event,#projection_type>) -> Result<()> {
+        fn #ident(registry: &mut dendrite::axon_utils::TheHandlerRegistry<#projection_type,dendrite::axon_server::event::Event,#projection_type>) -> Result<()> {
             registry.insert_with_output(
                 #event_type_literal,
                 &#event_type::decode,
@@ -250,7 +250,7 @@ fn get_metadata_arg(arg_iter: &mut Iter<FnArg>, package_name: &str, type_name: &
     arg_iter.next().map(Clone::clone).unwrap_or_else(|| {
         let package_ident = Ident::new(package_name, span);
         let type_ident = Ident::new(type_name, span);
-        let argument = quote! { _: ::dendrite::axon_server::#package_ident::#type_ident };
+        let argument = quote! { _: dendrite::axon_server::#package_ident::#type_ident };
         let arg: FnArg = parse2(argument).unwrap();
         arg
     })
@@ -287,15 +287,15 @@ fn impl_query_handler(ast: &ItemFn) -> TokenStream {
     let event_type_literal = LitStr::new(&event_type_ident.to_string(), event_type_ident.span());
 
     let gen = quote! {
-        use ::dendrite::axon_utils::HandlerRegistry as #ident_tmp;
+        use dendrite::axon_utils::HandlerRegistry as #ident_tmp;
 
-        async fn #ident_impl(#event_arg_name: #event_type, #metadata_arg, #query_model_arg_name: #query_model_type) -> Result<Option<::dendrite::axon_utils::QueryResult>> {
+        async fn #ident_impl(#event_arg_name: #event_type, #metadata_arg, #query_model_arg_name: #query_model_type) -> Result<Option<dendrite::axon_utils::QueryResult>> {
             debug!("Event type: {:?}", #event_type_literal);
             #block
         }
 
         // register event handler with registry
-        fn #ident(registry: &mut ::dendrite::axon_utils::TheHandlerRegistry<#query_model_type,::dendrite::axon_server::query::QueryRequest,::dendrite::axon_utils::QueryResult>) -> Result<()> {
+        fn #ident(registry: &mut dendrite::axon_utils::TheHandlerRegistry<#query_model_type,dendrite::axon_server::query::QueryRequest,dendrite::axon_utils::QueryResult>) -> Result<()> {
             registry.insert_with_output(
                 #event_type_literal,
                 &#event_type::decode,

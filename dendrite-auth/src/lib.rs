@@ -1,10 +1,14 @@
+pub mod dendrite {
+    pub use ::dendrite_lib::*;
+}
+
 pub mod dendrite_config;
 
 use anyhow::{Context,Result,anyhow};
 use core::convert::TryFrom;
-use dendrite::register;
-use dendrite::axon_server::event::Event;
-use dendrite::axon_utils::{AsyncApplicableTo, AxonServerHandle, TheHandlerRegistry, TokenStore, empty_handler_registry, event_processor};
+use dendrite_lib::register;
+use dendrite_lib::axon_server::event::Event;
+use dendrite_lib::axon_utils::{AsyncApplicableTo, AxonServerHandle, TheHandlerRegistry, TokenStore, empty_handler_registry, event_processor};
 use dendrite_macros;
 use jwt::{Header, Token, VerifyWithKey, AlgorithmType, Error};
 use jwt::algorithm::AlgorithmType::Rs256;

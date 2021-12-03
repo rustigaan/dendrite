@@ -1,9 +1,9 @@
 *-local.*
 /docker/docker-compose.yml
 
-/dendrite/present/src/grpc/
-/dendrite/present/node_modules/
-/dendrite/present/build/
+/dendrite-lib/present/src/grpc/
+/dendrite-lib/present/node_modules/
+/dendrite-lib/present/build/
 
 /*/target/
 /target
