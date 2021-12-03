@@ -24,7 +24,7 @@ pub async fn query_events_from_client(
         aggregate_id: aggregate_identifier.to_string(),
         allow_snapshots: false,
         initial_sequence: 0,
-        max_sequence: std::i64::MAX,
+        max_sequence: i64::MAX,
         min_token: 0,
     };
     let mut result = Vec::new();
