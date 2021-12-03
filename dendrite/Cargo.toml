@@ -1,6 +1,6 @@
 [package]
 name = "dendrite"
-version = "0.6.2"
+version = "0.7.0"
 authors = ["Jeroen van Maanen"]
 edition = "2018"
 description = "Event Sourcing and CQRS in Rust with AxonServer."
@@ -18,6 +18,6 @@ auth = ["dendrite_auth"]
 all = ["default", "auth"]
 
 [dependencies]
-dendrite_auth = { version = "0.4.2", path = "../dendrite-auth", optional = true }
-dendrite_lib = { version = "0.6.2", path = "../dendrite-lib" }
-dendrite_macros = { version = "0.3.0", path = "../dendrite-macros", optional = true }
+dendrite_auth = { version = "0.5.0", path = "../dendrite-auth", optional = true }
+dendrite_lib = { version = "0.7.0", path = "../dendrite-lib" }
+dendrite_macros = { version = "0.4.0", path = "../dendrite-macros", optional = true }
