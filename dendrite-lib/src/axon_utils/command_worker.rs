@@ -5,6 +5,8 @@ use crate::axon_server::command::command_provider_outbound;
 use crate::axon_server::command::command_service_client::CommandServiceClient;
 use crate::axon_server::command::{command_provider_inbound, Command};
 use crate::axon_server::command::{CommandProviderOutbound, CommandResponse, CommandSubscription};
+use crate::axon_server::common::meta_data_value::Data;
+use crate::axon_server::common::MetaDataValue;
 use crate::axon_server::event::event_store_client::EventStoreClient;
 use crate::axon_server::event::Event;
 use crate::axon_server::{ErrorMessage, FlowControl, SerializedObject};
@@ -364,10 +366,19 @@ async fn handle_command<P: VecU8Message + Send + Sync + Clone + std::fmt::Debug 
         )
         .await?;
 
+        let correlation_id = &*command.message_identifier;
         if !events.is_empty() {
             let aggregate_name = aggregate_definition.projection_name.clone();
             let aggregate_id = aggregate_id.ok_or_else(|| anyhow!("Missing aggregate id"))?;
-            store_events(client, &aggregate_name, &aggregate_id, &events, seq + 1).await?;
+            store_events(
+                client,
+                &aggregate_name,
+                &aggregate_id,
+                correlation_id,
+                &events,
+                seq + 1,
+            )
+            .await?;
         }
         Ok(Some(EmitEventsAndResponse {
             events: vec![],
@@ -411,6 +422,7 @@ async fn internal_handle_command<
     let aggregate_context = &mut aggregate_context.lock().await;
     let last_stored_seq = aggregate_context.seq;
     let aggregate_id = aggregate_context.aggregate_id.clone();
+    let correlation_id = &*command.message_identifier;
     if let Some(ref aggregate_id) = aggregate_id {
         let mut next_seq: i64 = last_stored_seq + 1;
         for pair in clone_events(&aggregate_context.events) {
@@ -418,7 +430,13 @@ async fn internal_handle_command<
                 .aggregate_definition
                 .projection_name
                 .clone();
-            let event = encode_event(&pair, &aggregate_name, aggregate_id, next_seq)?;
+            let event = encode_event(
+                &pair,
+                &aggregate_name,
+                aggregate_id,
+                correlation_id,
+                next_seq,
+            )?;
             debug!("Replaying new event: {:?}", Debuggable::from(&event));
             if let Some(payload) = event.payload.as_ref() {
                 let sourcing_handler = aggregate_context
@@ -664,6 +682,7 @@ async fn store_events<P: std::fmt::Debug>(
     client: &mut EventStoreClient<Channel>,
     aggregate_name: &str,
     aggregate_id: &str,
+    correlation_id: &str,
     events: &[(String, Box<dyn ApplicableTo<P, Event>>)],
     next_seq: i64,
 ) -> Result<()> {
@@ -675,7 +694,14 @@ async fn store_events<P: std::fmt::Debug>(
         .iter()
         .zip(next_seq..)
         .map(move |e| {
-            encode_event_with_timestamp(e.0, aggregate_name, aggregate_id, timestamp, e.1)
+            encode_event_with_timestamp(
+                e.0,
+                aggregate_name,
+                aggregate_id,
+                correlation_id,
+                timestamp,
+                e.1,
+            )
         })
         .collect();
     let request = Request::new(futures_util::stream::iter(event_messages));
@@ -687,6 +713,7 @@ fn encode_event<P>(
     e: &(String, Box<dyn ApplicableTo<P, Event>>),
     aggregate_name: &str,
     aggregate_id: &str,
+    correlation_id: &str,
     next_seq: i64,
 ) -> Result<Event> {
     let now = std::time::SystemTime::now();
@@ -695,6 +722,7 @@ fn encode_event<P>(
         e,
         aggregate_name,
         aggregate_id,
+        correlation_id,
         timestamp,
         next_seq,
     ))
@@ -704,6 +732,7 @@ fn encode_event_with_timestamp<P>(
     e: &(String, Box<dyn ApplicableTo<P, Event>>),
     aggregate_name: &str,
     aggregate_id: &str,
+    correlation_id: &str,
     timestamp: i64,
     next_seq: i64,
 ) -> Event {
@@ -716,6 +745,11 @@ fn encode_event_with_timestamp<P>(
         data: buf,
     };
     let message_identifier = Uuid::new_v4();
+    let mut meta_data = HashMap::new();
+    let correlation_id = MetaDataValue {
+        data: Some(Data::TextValue(correlation_id.to_string())),
+    };
+    meta_data.insert("correlation_id".to_string(), correlation_id);
     Event {
         message_identifier: format!("{}", message_identifier),
         timestamp,
@@ -723,7 +757,7 @@ fn encode_event_with_timestamp<P>(
         aggregate_sequence_number: next_seq,
         aggregate_type: aggregate_name.to_string(),
         payload: Some(e),
-        meta_data: HashMap::new(),
+        meta_data,
         snapshot: false,
     }
 }

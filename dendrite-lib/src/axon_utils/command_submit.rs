@@ -1,6 +1,7 @@
 use super::{wait_for_server, AxonServerHandle, CommandSink, VecU8Message};
 use crate::axon_server::command::command_service_client::CommandServiceClient;
 use crate::axon_server::command::Command;
+use crate::axon_server::common::{meta_data_value, MetaDataValue};
 use crate::axon_server::SerializedObject;
 use crate::intellij_work_around::Debuggable;
 use anyhow::{anyhow, Result};
@@ -14,6 +15,90 @@ pub async fn init() -> Result<AxonServerHandle> {
     let axon_server_handle = wait_for_server("proxy", 8124, "API").await.unwrap();
     debug!("Axon connection: {:?}", axon_server_handle);
     Ok(axon_server_handle)
+}
+
+pub struct SubmitCommand {
+    command_type: String,
+    command: Option<Box<dyn VecU8Message + Sync + Send>>,
+    metadata: HashMap<::prost::alloc::string::String, MetaDataValue>,
+}
+
+impl Default for SubmitCommand {
+    fn default() -> Self {
+        let command_type = "".to_string();
+        let metadata = HashMap::new();
+        SubmitCommand {
+            command_type,
+            command: None,
+            metadata,
+        }
+    }
+}
+
+impl SubmitCommand {
+    pub fn new(command_type: &str, command: Box<dyn VecU8Message + Sync + Send>) -> SubmitCommand {
+        let metadata = HashMap::new();
+        SubmitCommand {
+            command_type: command_type.to_string(),
+            command: Some(command),
+            metadata,
+        }
+    }
+    pub fn command<'a>(
+        &'a mut self,
+        command_type: &str,
+        command: Box<dyn VecU8Message + Sync + Send>,
+    ) -> &'a mut Self {
+        self.command_type = command_type.to_string();
+        self.command = Some(command);
+        self
+    }
+    pub fn annotation<'a>(&'a mut self, key: &str, value: &MetaDataValue) -> &'a mut SubmitCommand {
+        let meta_data = &mut self.metadata;
+        meta_data.insert(key.to_string(), value.clone());
+        self
+    }
+    pub fn text_annotation<'a>(&'a mut self, key: &str, value: &str) -> &'a mut SubmitCommand {
+        self.metadata.insert(
+            key.to_string(),
+            MetaDataValue {
+                data: Some(meta_data_value::Data::TextValue(value.to_string())),
+            },
+        );
+        self
+    }
+    pub fn correlation_id<'a>(&'a mut self, correlation_id: &str) -> &'a mut SubmitCommand {
+        self.text_annotation("correlation_id", correlation_id);
+        self
+    }
+    pub async fn send(
+        &self,
+        axon_server_handle: &AxonServerHandle,
+    ) -> Result<Option<SerializedObject>> {
+        let command_type = self.command_type.clone();
+        if command_type == "" {
+            return Err(anyhow!("Empty command type"));
+        }
+        let meta_data = self.metadata.clone();
+        if let Some(command) = &self.command {
+            debug!(
+                "Sending command: {:?}: {:?}",
+                &self.command_type, axon_server_handle.display_name
+            );
+            let mut buf = Vec::new();
+            command.encode_u8(&mut buf).unwrap();
+            let buffer_length = buf.len();
+            debug!("Buffer length: {:?}", buffer_length);
+            let serialized_command = SerializedObject {
+                r#type: command_type,
+                revision: "1".to_string(),
+                data: buf,
+            };
+            submit_command(axon_server_handle, serialized_command, meta_data).await
+        } else {
+            Err(anyhow!("Missing command"))
+        }
+    }
 }
 
 #[tonic::async_trait]
@@ -36,13 +121,14 @@ impl CommandSink for AxonServerHandle {
             revision: "1".to_string(),
             data: buf,
         };
-        submit_command(self, serialized_command).await
+        submit_command(self, serialized_command, HashMap::new()).await
     }
 }
 
 async fn submit_command(
     this: &AxonServerHandle,
     message: SerializedObject,
+    meta_data: HashMap<String, MetaDataValue>,
 ) -> Result<Option<SerializedObject>> {
     debug!("Message: {:?}", Debuggable::from(&message));
     let mut client = CommandServiceClient::new(this.conn.clone());
@@ -54,7 +140,7 @@ async fn submit_command(
         payload: Some(message),
         client_id: this.client_id.clone(),
         component_name: this.display_name.clone(),
-        meta_data: HashMap::new(),
+        meta_data,
         processing_instructions: Vec::new(),
         timestamp: 0,
     };

@@ -29,6 +29,7 @@ mod query_submit;
 
 pub use crate::axon_server::SerializedObject;
 pub use command_submit::init as init_command_sender;
+pub use command_submit::SubmitCommand;
 pub use command_worker::command_worker;
 pub use command_worker::{
     create_aggregate_definition, emit, emit_events, emit_events_and_response,
@@ -76,6 +77,7 @@ where
 /// Trait that is implemented by an object that can be used to send commands to AxonServer.
 #[tonic::async_trait]
 pub trait CommandSink {
+    #[deprecated(since = "0.8.0", note = "Use struct `SubmitCommand` instead")]
     async fn send_command(
         &self,
         command_type: &str,
