@@ -64,10 +64,17 @@ pub async fn event_processor<Q: TokenStore + Send + Sync + Clone>(
                 ..
             } = event.clone()
             {
-                if let Some(event_handler) = event_handler_registry
-                    .handlers
-                    .get(&serialized_object.r#type)
-                {
+                let event_type = serialized_object.r#type;
+                let mut event_handler_option = event_handler_registry.handlers.get(&event_type);
+                if event_handler_option.is_none() {
+                    for (regex, event_handler) in &event_handler_registry.category_handlers {
+                        if regex.is_match(&event_type) {
+                            event_handler_option = Some(event_handler);
+                            break;
+                        }
+                    }
+                }
+                if let Some(event_handler) = event_handler_option {
                     (event_handler)
                         .handle(serialized_object.data, event, query_model.clone())
                         .await?;

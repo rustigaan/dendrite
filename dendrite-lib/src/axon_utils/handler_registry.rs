@@ -1,6 +1,7 @@
 use anyhow::{anyhow, Result};
 use bytes::Bytes;
 use futures_core::Future;
+use regex::Regex;
 use std::collections::HashMap;
 use std::pin::Pin; // better to not use the internals of futures_util
 
@@ -34,6 +35,7 @@ pub trait HandlerRegistry<P, M, W>: Send {
         deserializer: Deserializer<'static, T>,
         handler: Handler<'static, T, M, P, ()>,
     ) -> Result<()>;
+    fn insert_handle(&mut self, handle: Box<dyn SubscriptionHandle<P, M, W>>) -> Result<()>;
     fn insert_ignoring_output<T: Send + Clone, R: Clone>(
         &mut self,
         name: &str,
@@ -54,12 +56,89 @@ pub trait HandlerRegistry<P, M, W>: Send {
         type_name: &str,
         wrapper: Wrapper<R, W>,
     ) -> Result<()>;
+    fn append_category_handle<T: Send + Clone, R: Clone>(
+        &mut self,
+        regex: &str,
+        handle: Box<dyn SubscriptionHandle<P, M, W>>,
+    ) -> Result<()>;
     fn get(&self, name: &str) -> Option<&dyn SubscriptionHandle<P, M, W>>;
 }
 
 /// Concrete struct that implements the `HandlerRegistry` trait.
 pub struct TheHandlerRegistry<P: Send, M, W: Clone> {
-    pub handlers: HashMap<String, Box<dyn SubscriptionHandle<P, M, W>>>,
+    pub(crate) handlers: HashMap<String, Box<dyn SubscriptionHandle<P, M, W>>>,
+    pub(crate) category_handlers: Vec<(Regex, Box<dyn SubscriptionHandle<P, M, W>>)>,
+}
+
+pub struct HandleBuilder<T, M, P, R, W>
+where
+    T: 'static,
+    M: 'static,
+    P: 'static,
+    R: 'static,
+    W: 'static,
+{
+    name: String,
+    deserializer: Deserializer<'static, T>,
+    handler: Handler<'static, T, M, P, Option<R>>,
+    wrapper: Option<ResponseWrapper<'static, R, W>>,
+}
+
+impl<T, M, P, R, W> HandleBuilder<T, M, P, R, W>
+where
+    T: Clone + Send,
+    M: Clone + Send,
+    P: Clone + Send,
+    R: Clone,
+    W: Clone,
+{
+    fn new(
+        name: &str,
+        deserializer: Deserializer<'static, T>,
+        handler: Handler<'static, T, M, P, Option<R>>,
+    ) -> Self {
+        HandleBuilder {
+            name: name.to_string(),
+            deserializer,
+            handler,
+            wrapper: None,
+        }
+    }
+    fn ignore_output(mut self) -> HandleBuilder<T, M, P, R, W> {
+        self.wrapper = None;
+        self
+    }
+    fn with_mapped_output(
+        mut self,
+        type_name: &str,
+        mapper: Wrapper<R, W>,
+    ) -> HandleBuilder<T, M, P, R, W> {
+        self.wrapper = Some(ResponseWrapper {
+            type_name: type_name.to_string(),
+            convert: mapper,
+        });
+        self
+    }
+    fn build(self) -> Box<dyn SubscriptionHandle<P, M, W>> {
+        Box::new(Subscription {
+            name: self.name,
+            deserializer: self.deserializer,
+            handler: self.handler,
+            wrapper: self.wrapper,
+        })
+    }
+}
+impl<T, M, P, R> HandleBuilder<T, M, P, R, R>
+where
+    R: Clone,
+{
+    fn with_output(mut self) -> HandleBuilder<T, M, P, R, R> {
+        self.wrapper = Some(ResponseWrapper {
+            type_name: "UNKNOWN".to_string(),
+            convert: &(|_, r| Ok((*r).clone())),
+        });
+        self
+    }
 }
 
 impl<P, M, W> HandlerRegistry<P, M, W> for TheHandlerRegistry<P, M, W>
@@ -92,25 +171,25 @@ where
         Ok(())
     }
 
+    fn insert_handle(&mut self, handle: Box<dyn SubscriptionHandle<P, M, W>>) -> Result<()> {
+        let key = handle.name();
+        if self.handlers.contains_key(&key) {
+            return Err(anyhow!("Handler already registered: {:?}", key));
+        }
+        self.handlers.insert(key, handle.box_clone());
+        Ok(())
+    }
+
     fn insert_ignoring_output<T: Send + Clone, R: Clone>(
         &mut self,
         name: &str,
         deserializer: Deserializer<'static, T>,
         handler: Handler<'static, T, M, P, Option<R>>,
     ) -> Result<()> {
-        let name = name.to_string();
-        let key = name.clone();
-        let handle: Box<dyn SubscriptionHandle<P, M, W>> = Box::new(Subscription {
-            name,
-            deserializer,
-            handler,
-            wrapper: None,
-        });
-        if self.handlers.contains_key(&key) {
-            return Err(anyhow!("Handler already registered: {:?}", key));
-        }
-        self.handlers.insert(key, handle.box_clone());
-        Ok(())
+        let handle = HandleBuilder::new(name, deserializer, handler)
+            .ignore_output()
+            .build();
+        self.insert_handle(handle)
     }
 
     fn insert_with_output<T: Send + Clone>(
@@ -119,22 +198,10 @@ where
         deserializer: Deserializer<'static, T>,
         handler: Handler<'static, T, M, P, Option<W>>,
     ) -> Result<()> {
-        let name = name.to_string();
-        let key = name.clone();
-        let handle: Box<dyn SubscriptionHandle<P, M, W>> = Box::new(Subscription {
-            name,
-            deserializer,
-            handler,
-            wrapper: Some(ResponseWrapper {
-                type_name: "UNKNOWN".to_string(),
-                convert: &(|_, r| Ok(r.clone())),
-            }),
-        });
-        if self.handlers.contains_key(&key) {
-            return Err(anyhow!("Handler already registered: {:?}", key));
-        }
-        self.handlers.insert(key, handle.box_clone());
-        Ok(())
+        let handle = HandleBuilder::new(name, deserializer, handler)
+            .with_output()
+            .build();
+        self.insert_handle(handle)
     }
 
     fn insert_with_mapped_output<T: Send + Clone, R: Clone>(
@@ -145,21 +212,24 @@ where
         type_name: &str,
         wrapper: Wrapper<R, W>,
     ) -> Result<()> {
-        let name = name.to_string();
+        let handle = HandleBuilder::new(name, deserializer, handler)
+            .with_mapped_output(type_name, wrapper)
+            .build();
+        self.insert_handle(handle)
+    }
+
+    fn append_category_handle<T: Send + Clone, R: Clone>(
+        &mut self,
+        regex: &str,
+        handle: Box<dyn SubscriptionHandle<P, M, W>>,
+    ) -> Result<()> {
+        let regex = Regex::new(regex)?;
+        let name = handle.name();
         let key = name.clone();
-        let handle: Box<dyn SubscriptionHandle<P, M, W>> = Box::new(Subscription {
-            name,
-            deserializer,
-            handler,
-            wrapper: Some(ResponseWrapper {
-                type_name: type_name.to_string(),
-                convert: wrapper,
-            }),
-        });
         if self.handlers.contains_key(&key) {
             return Err(anyhow!("Handler already registered: {:?}", key));
         }
-        self.handlers.insert(key, handle.box_clone());
+        self.category_handlers.push((regex, handle.box_clone()));
         Ok(())
     }
 
@@ -173,6 +243,7 @@ where
 pub fn empty_handler_registry<P: Send, M: Send + Clone, W: Clone>() -> TheHandlerRegistry<P, M, W> {
     TheHandlerRegistry {
         handlers: HashMap::new(),
+        category_handlers: Vec::new(),
     }
 }
 
@@ -218,7 +289,7 @@ impl<P: Send + Clone, T: Send + Clone, M: Clone + Send, R: Clone, W: Clone>
     }
 
     fn box_clone(&self) -> Box<dyn SubscriptionHandle<P, M, W>> {
-        Box::from(Subscription::clone(&self))
+        Box::new(Subscription::clone(&self))
     }
 }
 
@@ -244,6 +315,6 @@ impl<P: Send + Clone, T: Send + Clone, M: Send + Clone, W: Clone + 'static>
     }
 
     fn box_clone(&self) -> Box<dyn SubscriptionHandle<P, M, W>> {
-        Box::from(SubscriptionVoid::clone(&self))
+        Box::new(SubscriptionVoid::clone(&self))
     }
 }
