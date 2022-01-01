@@ -9,3 +9,8 @@ pub mod macros {
 pub mod auth {
     pub use ::dendrite_auth::*;
 }
+
+#[cfg(feature="dendrite_elasticsearch")]
+pub mod elasticsearch {
+    pub use ::dendrite_elasticsearch::*;
+}

@@ -1,0 +1,24 @@
+[package]
+name = "dendrite_elasticsearch"
+version = "0.1.0"
+authors = ["Jeroen van Maanen"]
+edition = "2018"
+description = "Support for Elastic Search in dendrite"
+readme = "README.md"
+homepage = "https://github.com/rustigaan/dendrite"
+repository = "https://github.com/rustigaan/dendrite"
+license = "MIT"
+keywords = ["event-sourcing", "CQRS", "AxonServer"]
+categories = ["web-programming"]
+include = ["/src/**/*", "/Cargo.*", "/build.rs", "/README.md", "/LICENSE"]
+
+[dependencies]
+anyhow = "^1.0"
+dendrite_lib = { version = "0.8.0", path = "../dendrite-lib" }
+dendrite_macros = { version = "0.4.0", path = "../dendrite-macros" }
+elasticsearch = "7.14.0-alpha.1"
+log = "^0.4"
+serde = "~1"
+serde_json = "~1"
+tokio = { version = "^1.0", features = ["macros","rt-multi-thread","time"] }
+async-trait = "0.1.51"
