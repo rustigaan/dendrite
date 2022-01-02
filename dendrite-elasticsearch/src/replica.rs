@@ -1,0 +1,140 @@
+use std::collections::HashMap;
+use std::sync::Arc;
+use anyhow::{anyhow, Context, Result};
+use bytes::Bytes;
+use elasticsearch::IndexParts;
+use dendrite_lib::axon_server::event::Event;
+use dendrite_lib::axon_utils::{AxonServerHandle, TheHandlerRegistry, TokenStore, empty_handler_registry, event_processor, HandlerRegistry, HandleBuilder};
+use log::{debug, error, warn};
+use serde_json::{Map, Value};
+use serde::Serialize;
+use dendrite_lib::intellij_work_around::Debuggable;
+use crate::{ElasticQueryModel, create_elastic_query_model, wait_for_elastic_search};
+
+pub(crate) type Transcoder = Arc<Box<dyn Fn(Bytes) -> anyhow::Result<Value> + Send + Sync>>;
+pub(crate) type Deserializer<T> = Box<dyn Fn(Bytes) -> Result<T, prost::DecodeError> + Send + Sync>;
+
+#[derive(Clone)]
+pub struct Transcoders(HashMap<String,Transcoder>);
+
+#[derive(Clone)]
+struct ReplicaQueryModel {
+    elastic_query_model: ElasticQueryModel,
+    transcoders: Transcoders,
+}
+
+#[async_trait::async_trait]
+impl TokenStore for ReplicaQueryModel {
+    async fn store_token(&self, token: i64) {
+        self.elastic_query_model.store_token(token).await;
+    }
+
+    async fn retrieve_token(&self) -> Result<i64> {
+        self.elastic_query_model.retrieve_token().await
+    }
+}
+
+/// Handles events for the `replica` query model.
+///
+/// Constructs an event handler registry and delegates to function `event_processor`.
+pub async fn process_events(axon_server_handle: AxonServerHandle, transcoders: Transcoders) {
+    if let Err(e) = internal_process_events(axon_server_handle, transcoders).await {
+        error!("Error while handling events: {:?}", e);
+    }
+    debug!("Stopped handling events for replica query model");
+}
+
+async fn internal_process_events(axon_server_handle: AxonServerHandle, transcoders: Transcoders) -> Result<()> {
+    let client = wait_for_elastic_search().await?;
+    debug!("Elastic Search client: {:?}", client);
+
+    let elastic_query_model = create_elastic_query_model(client, "replica".to_string());
+    let query_model = ReplicaQueryModel{ elastic_query_model, transcoders };
+
+    let mut event_handler_registry: TheHandlerRegistry<
+        ReplicaQueryModel,
+        Event,
+        Option<ReplicaQueryModel>,
+    > = empty_handler_registry();
+
+    let handle = HandleBuilder::new(
+        "any-event",
+        &null_deserializer,
+        &(|e,q,m| Box::pin(handle_registered_event(e, q, m)))
+    ).ignore_output().build();
+    event_handler_registry.append_category_handle(".*", handle)?;
+
+    event_processor(axon_server_handle, query_model, event_handler_registry)
+        .await
+        .context("Error while handling commands")
+}
+
+fn null_deserializer(_buf: Bytes) -> Result<(),prost::DecodeError> {
+    Ok(())
+}
+
+async fn handle_registered_event(
+    _buf: (),
+    event: Event,
+    query_model: ReplicaQueryModel,
+) -> Result<Option<()>> {
+    let query_model_name = query_model.elastic_query_model.get_identifier().to_string();
+    let event_id = event.message_identifier.clone();
+    if let Err(e) = handle_registered_event_internal(event, query_model).await {
+        warn!("Error processing event for query model: {:?}: {:?}: {:?}", event_id, query_model_name, e);
+    }
+    Ok(None)
+}
+async fn handle_registered_event_internal(
+    event: Event,
+    query_model: ReplicaQueryModel,
+) -> Result<Option<()>> {
+    debug!("Apply any event to ReplicaQueryModel: {:?}: {:?}", Debuggable::from(&event), query_model.elastic_query_model.get_identifier());
+    if let Some(serialized_object) = &event.payload {
+        let payload_type = &*serialized_object.r#type;
+        let buf = &serialized_object.data;
+        debug!("Replica: save {:?} ({:?})", payload_type, buf.len());
+        if let Some(transcoder) = query_model.transcoders.0.get(payload_type) {
+            let event_json = (transcoder)(Bytes::from(buf.clone()))?;
+            debug!("Replica: JSON value: {:?}", event_json);
+
+            let mut meta_data_json = Map::new();
+            for (key, value) in event.meta_data.iter() {
+                meta_data_json.insert(key.to_string(), serde_json::to_value(value)?);
+            }
+            let meta_data_json = Value::Object(meta_data_json);
+
+            let mut json_value = Map::new();
+            json_value.insert("event".to_string(), event_json);
+            json_value.insert("meta_data".to_string(), meta_data_json);
+            let json_value = Value::Object(json_value);
+
+            let es_client = query_model.elastic_query_model.get_client();
+            let response = es_client
+                .index(IndexParts::IndexId(query_model.elastic_query_model.get_identifier(),&*event.message_identifier))
+                .body(json_value)
+                .send()
+                .await;
+            debug!("Elastic Search response: {:?}", response);
+        } else {
+            debug!("Replica: Skipped: {:?}", payload_type);
+        }
+    }
+    Ok(None)
+}
+
+impl Transcoders {
+    pub fn new() -> Self {
+        Transcoders(HashMap::new())
+    }
+
+    pub fn insert<T: 'static + Serialize>(mut self, message_type: &str, deserializer: Deserializer<T>) -> Transcoders {
+        let transcoder = move |buf: Bytes| {
+            let object: T = (deserializer)(buf).map_err(|e| anyhow!("Deserialize protobuf error: {:?}", e))?;
+            let result: anyhow::Result<Value> = serde_json::to_value(object).map_err(|e| anyhow!("Serialize JSON error: {:?}", e));
+            result
+        };
+        self.0.insert(message_type.to_string(), Arc::new(Box::new(transcoder)));
+        self
+    }
+}

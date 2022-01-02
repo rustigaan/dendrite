@@ -1,5 +1,5 @@
 /// An instruction from Application Node to the AxonServer platform
-#[derive(Clone, PartialEq, ::prost::Message)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, PartialEq, ::prost::Message)]
 pub struct PlatformInboundInstruction {
     /// Instruction identifier. If this identifier is set, this instruction will be acknowledged via outbound stream
     #[prost(string, tag = "5")]
@@ -14,7 +14,7 @@ pub struct PlatformInboundInstruction {
 /// Nested message and enum types in `PlatformInboundInstruction`.
 pub mod platform_inbound_instruction {
     /// The actual instruction to send
-    #[derive(Clone, PartialEq, ::prost::Oneof)]
+    #[derive(serde::Serialize, serde::Deserialize, Clone, PartialEq, ::prost::Oneof)]
     pub enum Request {
         /// Information about the client being connected.
         ///This information is used by AxonServer to monitor the topology of connected applications.
@@ -36,7 +36,7 @@ pub mod platform_inbound_instruction {
     }
 }
 /// An instruction or information from the AxonServer Platform to the Application Node
-#[derive(Clone, PartialEq, ::prost::Message)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, PartialEq, ::prost::Message)]
 pub struct PlatformOutboundInstruction {
     /// Instruction identifier. If this identifier is set, this instruction will be acknowledged via inbound stream
     #[prost(string, tag = "12")]
@@ -51,7 +51,7 @@ pub struct PlatformOutboundInstruction {
 /// Nested message and enum types in `PlatformOutboundInstruction`.
 pub mod platform_outbound_instruction {
     /// The actual instruction or information
-    #[derive(Clone, PartialEq, ::prost::Oneof)]
+    #[derive(serde::Serialize, serde::Deserialize, Clone, PartialEq, ::prost::Oneof)]
     pub enum Request {
         /// Information provided by AxonServer which provides information about the AxonServer node the application is connected with
         #[prost(message, tag = "1")]
@@ -88,10 +88,10 @@ pub mod platform_outbound_instruction {
     }
 }
 /// Message send when AxonServer requests the client to re-establish its connection with the Platform
-#[derive(Clone, PartialEq, ::prost::Message)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, PartialEq, ::prost::Message)]
 pub struct RequestReconnect {}
 /// Message containing connection information of the node to Connect with
-#[derive(Clone, PartialEq, ::prost::Message)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, PartialEq, ::prost::Message)]
 pub struct PlatformInfo {
     /// The connection details of the node the client should connect with
     #[prost(message, optional, tag = "1")]
@@ -102,7 +102,7 @@ pub struct PlatformInfo {
     pub same_connection: bool,
 }
 /// Message containing connection information for an AxonServer Node
-#[derive(Clone, PartialEq, ::prost::Message)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, PartialEq, ::prost::Message)]
 pub struct NodeInfo {
     /// The host name to use when connecting to this node
     #[prost(string, tag = "1")]
@@ -121,7 +121,7 @@ pub struct NodeInfo {
     pub node_name: ::prost::alloc::string::String,
 }
 /// Message containing details about the Client Application
-#[derive(Clone, PartialEq, ::prost::Message)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, PartialEq, ::prost::Message)]
 pub struct ClientIdentification {
     /// A unique identifier for this client instance. Is used to distinguish different instances of the same component
     #[prost(string, tag = "1")]
@@ -138,7 +138,7 @@ pub struct ClientIdentification {
     pub version: ::prost::alloc::string::String,
 }
 /// Message containing information about the status of a Tracking Event Processor
-#[derive(Clone, PartialEq, ::prost::Message)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, PartialEq, ::prost::Message)]
 pub struct EventProcessorInfo {
     /// The logical name of this processor.
     #[prost(string, tag = "1")]
@@ -170,7 +170,7 @@ pub struct EventProcessorInfo {
 /// Nested message and enum types in `EventProcessorInfo`.
 pub mod event_processor_info {
     /// Message containing information about the status of a Segment of a Tracking Event Processor
-    #[derive(Clone, PartialEq, ::prost::Message)]
+    #[derive(serde::Serialize, serde::Deserialize, Clone, PartialEq, ::prost::Message)]
     pub struct SegmentStatus {
         /// The ID of the Segment for which the status is reported
         #[prost(int32, tag = "1")]
@@ -193,14 +193,14 @@ pub mod event_processor_info {
     }
 }
 /// Message providing reference to an Event Processor
-#[derive(Clone, PartialEq, ::prost::Message)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, PartialEq, ::prost::Message)]
 pub struct EventProcessorReference {
     /// The name of the Event Processor
     #[prost(string, tag = "1")]
     pub processor_name: ::prost::alloc::string::String,
 }
 /// Message providing reference to a Segment of an Event Processor
-#[derive(Clone, PartialEq, ::prost::Message)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, PartialEq, ::prost::Message)]
 pub struct EventProcessorSegmentReference {
     /// The name of the Event Processor
     #[prost(string, tag = "1")]
@@ -209,7 +209,7 @@ pub struct EventProcessorSegmentReference {
     #[prost(int32, tag = "2")]
     pub segment_identifier: i32,
 }
-#[derive(Clone, PartialEq, ::prost::Message)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, PartialEq, ::prost::Message)]
 pub struct Heartbeat {}
 #[doc = r" Generated client implementations."]
 pub mod platform_service_client {

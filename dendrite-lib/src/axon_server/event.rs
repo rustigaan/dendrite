@@ -1,5 +1,5 @@
 /// Request message to schedule an event
-#[derive(Clone, PartialEq, ::prost::Message)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, PartialEq, ::prost::Message)]
 pub struct ScheduleEventRequest {
     /// timestamp when to publish the event
     #[prost(int64, tag = "1")]
@@ -9,7 +9,7 @@ pub struct ScheduleEventRequest {
     pub event: ::core::option::Option<Event>,
 }
 /// Request message to reschedule an event
-#[derive(Clone, PartialEq, ::prost::Message)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, PartialEq, ::prost::Message)]
 pub struct RescheduleEventRequest {
     /// optional token of scheduled event to cancel
     #[prost(string, tag = "1")]
@@ -22,41 +22,41 @@ pub struct RescheduleEventRequest {
     pub event: ::core::option::Option<Event>,
 }
 /// Request message to cancel an event
-#[derive(Clone, PartialEq, ::prost::Message)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, PartialEq, ::prost::Message)]
 pub struct CancelScheduledEventRequest {
     /// token of scheduled event to cancel
     #[prost(string, tag = "1")]
     pub token: ::prost::alloc::string::String,
 }
 /// Token to manage a scheduled event
-#[derive(Clone, PartialEq, ::prost::Message)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, PartialEq, ::prost::Message)]
 pub struct ScheduleToken {
     /// Field defining the token identifier
     #[prost(string, tag = "1")]
     pub token: ::prost::alloc::string::String,
 }
 /// Request message to receive the first Token (Tail Token) of the Event Stream
-#[derive(Clone, PartialEq, ::prost::Message)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, PartialEq, ::prost::Message)]
 pub struct GetFirstTokenRequest {}
 /// Request message to receive the last Token (Head Token) of the Event Stream
-#[derive(Clone, PartialEq, ::prost::Message)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, PartialEq, ::prost::Message)]
 pub struct GetLastTokenRequest {}
 /// Request message to receive the Token that starts streaming events from the given timestamp
-#[derive(Clone, PartialEq, ::prost::Message)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, PartialEq, ::prost::Message)]
 pub struct GetTokenAtRequest {
     /// Timestamp expressed as milliseconds since epoch
     #[prost(int64, tag = "1")]
     pub instant: i64,
 }
 /// Message containing the information necessary to track the position of events in the Event Stream
-#[derive(Clone, PartialEq, ::prost::Message)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, PartialEq, ::prost::Message)]
 pub struct TrackingToken {
     /// The value of the Token
     #[prost(int64, tag = "1")]
     pub token: i64,
 }
 /// Message wrapping an Event and a Tracking Token
-#[derive(Clone, PartialEq, ::prost::Message)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, PartialEq, ::prost::Message)]
 pub struct EventWithToken {
     /// The Token representing the position of this Event in the Stream
     #[prost(int64, tag = "1")]
@@ -66,7 +66,7 @@ pub struct EventWithToken {
     pub event: ::core::option::Option<Event>,
 }
 /// Message providing the parameters for executing a Query against AxonServer.
-#[derive(Clone, PartialEq, ::prost::Message)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, PartialEq, ::prost::Message)]
 pub struct QueryEventsRequest {
     /// The query to execute against the Event Stream
     #[prost(string, tag = "1")]
@@ -86,7 +86,7 @@ pub struct QueryEventsRequest {
     pub force_read_from_leader: bool,
 }
 /// A message describing a response to a Query request
-#[derive(Clone, PartialEq, ::prost::Message)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, PartialEq, ::prost::Message)]
 pub struct QueryEventsResponse {
     /// The actual contents of this response
     #[prost(oneof = "query_events_response::Data", tags = "1, 2, 3")]
@@ -95,7 +95,7 @@ pub struct QueryEventsResponse {
 /// Nested message and enum types in `QueryEventsResponse`.
 pub mod query_events_response {
     /// The actual contents of this response
-    #[derive(Clone, PartialEq, ::prost::Oneof)]
+    #[derive(serde::Serialize, serde::Deserialize, Clone, PartialEq, ::prost::Oneof)]
     pub enum Data {
         /// Provided when the response contains the names of the columns the response contains. This message typically arrives first.
         #[prost(message, tag = "1")]
@@ -109,14 +109,14 @@ pub mod query_events_response {
     }
 }
 /// Message containing the names of the columns returned in a Query
-#[derive(Clone, PartialEq, ::prost::Message)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, PartialEq, ::prost::Message)]
 pub struct ColumnsResponse {
     /// The names of the columns provided in the query
     #[prost(string, repeated, tag = "1")]
     pub column: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
 }
 /// Message providing Query Result data
-#[derive(Clone, PartialEq, ::prost::Message)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, PartialEq, ::prost::Message)]
 pub struct RowResponse {
     /// The values which, when combined, uniquely update this row. Any previously received values with the same identifiers should be replaced with this value
     #[prost(message, repeated, tag = "1")]
@@ -129,7 +129,7 @@ pub struct RowResponse {
     pub values: ::std::collections::HashMap<::prost::alloc::string::String, QueryValue>,
 }
 /// Describes the combination of an Aggregate Identifier and first expected Sequence number when opening an Aggregate-specific Event Stream
-#[derive(Clone, PartialEq, ::prost::Message)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, PartialEq, ::prost::Message)]
 pub struct ReadHighestSequenceNrRequest {
     /// The Identifier of the Aggregate for which to load events
     #[prost(string, tag = "1")]
@@ -139,21 +139,21 @@ pub struct ReadHighestSequenceNrRequest {
     pub from_sequence_nr: i64,
 }
 /// The highest Sequence Number found for the provided request
-#[derive(Clone, PartialEq, ::prost::Message)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, PartialEq, ::prost::Message)]
 pub struct ReadHighestSequenceNrResponse {
     /// The sequence number of the latest event
     #[prost(int64, tag = "1")]
     pub to_sequence_nr: i64,
 }
 /// A confirmation to a request from the client
-#[derive(Clone, PartialEq, ::prost::Message)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, PartialEq, ::prost::Message)]
 pub struct Confirmation {
     /// True when successful, otherwise false
     #[prost(bool, tag = "1")]
     pub success: bool,
 }
 /// Request describing the desire to read events for a specific Aggregate
-#[derive(Clone, PartialEq, ::prost::Message)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, PartialEq, ::prost::Message)]
 pub struct GetAggregateEventsRequest {
     /// The identifier of the aggregate to read events for
     #[prost(string, tag = "1")]
@@ -172,7 +172,7 @@ pub struct GetAggregateEventsRequest {
     pub min_token: i64,
 }
 /// Request message to retrieve Snapshot Events for a specific Aggregate instance
-#[derive(Clone, PartialEq, ::prost::Message)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, PartialEq, ::prost::Message)]
 pub struct GetAggregateSnapshotsRequest {
     /// The identifier to fetch the snapshots for
     #[prost(string, tag = "1")]
@@ -188,7 +188,7 @@ pub struct GetAggregateSnapshotsRequest {
     pub max_results: i32,
 }
 /// Request message to open an Event Stream from the Event Store.
-#[derive(Clone, PartialEq, ::prost::Message)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, PartialEq, ::prost::Message)]
 pub struct GetEventsRequest {
     /// The token to start streaming from
     #[prost(int64, tag = "1")]
@@ -219,7 +219,7 @@ pub struct GetEventsRequest {
     pub force_read_from_leader: bool,
 }
 /// Message containing the information of an Event
-#[derive(Clone, PartialEq, ::prost::Message)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, PartialEq, ::prost::Message)]
 pub struct Event {
     /// The unique identifier of this event
     #[prost(string, tag = "1")]
@@ -248,7 +248,7 @@ pub struct Event {
     pub snapshot: bool,
 }
 /// Value used in Query Responses to represent a value in its original type
-#[derive(Clone, PartialEq, ::prost::Message)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, PartialEq, ::prost::Message)]
 pub struct QueryValue {
     /// The actual value, which can be one of string, 64 bit signed integer, boolean or 64 bits floating point
     #[prost(oneof = "query_value::Data", tags = "1, 2, 3, 4")]
@@ -257,7 +257,7 @@ pub struct QueryValue {
 /// Nested message and enum types in `QueryValue`.
 pub mod query_value {
     /// The actual value, which can be one of string, 64 bit signed integer, boolean or 64 bits floating point
-    #[derive(Clone, PartialEq, ::prost::Oneof)]
+    #[derive(serde::Serialize, serde::Deserialize, Clone, PartialEq, ::prost::Oneof)]
     pub enum Data {
         /// The text value
         #[prost(string, tag = "1")]
@@ -274,7 +274,7 @@ pub mod query_value {
     }
 }
 /// Description of a Payload Type
-#[derive(Clone, PartialEq, ::prost::Message)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, PartialEq, ::prost::Message)]
 pub struct PayloadDescription {
     /// The type identifier of the Payload
     #[prost(string, tag = "1")]

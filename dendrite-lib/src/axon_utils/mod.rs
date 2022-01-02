@@ -41,10 +41,8 @@ pub use connection::wait_for_server;
 pub use event_processor::{event_processor, TokenStore};
 pub use event_query::query_events;
 pub use handler_registry::empty_handler_registry;
-pub use handler_registry::{HandlerRegistry, TheHandlerRegistry};
+pub use handler_registry::{HandleBuilder, HandlerRegistry, TheHandlerRegistry};
 pub use query_processor::{query_processor, QueryContext, QueryResult};
-
-// pub(crate) use handler_registry::{Applicator, Deserializer, Handler, SendFtr, Wrapper};
 
 /// A handle for AxonServer.
 #[derive(Debug, Clone)]

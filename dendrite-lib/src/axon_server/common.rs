@@ -1,5 +1,5 @@
 /// Describes a serialized object
-#[derive(Clone, PartialEq, ::prost::Message)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, PartialEq, ::prost::Message)]
 pub struct SerializedObject {
     /// The type identifier of the serialized object.
     #[prost(string, tag = "1")]
@@ -12,7 +12,7 @@ pub struct SerializedObject {
     pub data: ::prost::alloc::vec::Vec<u8>,
 }
 /// The value of a MetaData entry.
-#[derive(Clone, PartialEq, ::prost::Message)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, PartialEq, ::prost::Message)]
 pub struct MetaDataValue {
     /// The data of the MetaData entry, depending on the type of data it contains.
     #[prost(oneof = "meta_data_value::Data", tags = "1, 2, 3, 4, 5")]
@@ -21,7 +21,7 @@ pub struct MetaDataValue {
 /// Nested message and enum types in `MetaDataValue`.
 pub mod meta_data_value {
     /// The data of the MetaData entry, depending on the type of data it contains.
-    #[derive(Clone, PartialEq, ::prost::Oneof)]
+    #[derive(serde::Serialize, serde::Deserialize, Clone, PartialEq, ::prost::Oneof)]
     pub enum Data {
         /// The text value of the Meta Data entry.
         #[prost(string, tag = "1")]
@@ -41,7 +41,7 @@ pub mod meta_data_value {
     }
 }
 /// An instruction for routing components when routing or processing a message.
-#[derive(Clone, PartialEq, ::prost::Message)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, PartialEq, ::prost::Message)]
 pub struct ProcessingInstruction {
     /// The type of processing message.
     #[prost(enumeration = "ProcessingKey", tag = "1")]
@@ -51,7 +51,7 @@ pub struct ProcessingInstruction {
     pub value: ::core::option::Option<MetaDataValue>,
 }
 /// Message containing details of an error
-#[derive(Clone, PartialEq, ::prost::Message)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, PartialEq, ::prost::Message)]
 pub struct ErrorMessage {
     /// A human readable message explaining the error
     #[prost(string, tag = "1")]
@@ -67,7 +67,7 @@ pub struct ErrorMessage {
     pub error_code: ::prost::alloc::string::String,
 }
 /// Message used for Flow Control instruction, providing the counterpart with additional permits for sending messages
-#[derive(Clone, PartialEq, ::prost::Message)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, PartialEq, ::prost::Message)]
 pub struct FlowControl {
     /// The ClientID of the component providing additional permits
     #[prost(string, tag = "2")]
@@ -77,7 +77,7 @@ pub struct FlowControl {
     pub permits: i64,
 }
 /// Message describing instruction acknowledgement
-#[derive(Clone, PartialEq, ::prost::Message)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, PartialEq, ::prost::Message)]
 pub struct InstructionAck {
     /// The identifier of the instruction
     #[prost(string, tag = "1")]
@@ -90,7 +90,7 @@ pub struct InstructionAck {
     pub error: ::core::option::Option<ErrorMessage>,
 }
 /// Message describing the result of the execution of an instruction
-#[derive(Clone, PartialEq, ::prost::Message)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, PartialEq, ::prost::Message)]
 pub struct InstructionResult {
     /// The identifier of the instruction
     #[prost(string, tag = "1")]
@@ -103,7 +103,19 @@ pub struct InstructionResult {
     pub error: ::core::option::Option<ErrorMessage>,
 }
 /// An enumeration of possible keys for processing instructions.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
+#[derive(
+    serde::Serialize,
+    serde::Deserialize,
+    Clone,
+    Copy,
+    Debug,
+    PartialEq,
+    Eq,
+    Hash,
+    PartialOrd,
+    Ord,
+    ::prost::Enumeration,
+)]
 #[repr(i32)]
 pub enum ProcessingKey {
     /// key indicating that the attached value should be used for consistent routing.
@@ -116,7 +128,19 @@ pub enum ProcessingKey {
     NrOfResults = 3,
 }
 /// Defines status values for a scheduled task
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
+#[derive(
+    serde::Serialize,
+    serde::Deserialize,
+    Clone,
+    Copy,
+    Debug,
+    PartialEq,
+    Eq,
+    Hash,
+    PartialOrd,
+    Ord,
+    ::prost::Enumeration,
+)]
 #[repr(i32)]
 pub enum TaskStatus {
     /// Task is scheduled for execution

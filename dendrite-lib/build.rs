@@ -1,9 +1,11 @@
-use std::env;
 use std::fs;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    env::set_var("OUT_DIR", "src");
-    tonic_build::configure().build_server(false).compile(
+    tonic_build::configure()
+        .out_dir("src")
+        .type_attribute(".", "#[derive(serde::Serialize, serde::Deserialize)]")
+        .build_server(false)
+        .compile(
         &[
             "proto/axon_server/command.proto",
             "proto/axon_server/control.proto",

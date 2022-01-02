@@ -56,7 +56,7 @@ pub trait HandlerRegistry<P, M, W>: Send {
         type_name: &str,
         wrapper: Wrapper<R, W>,
     ) -> Result<()>;
-    fn append_category_handle<T: Send + Clone, R: Clone>(
+    fn append_category_handle(
         &mut self,
         regex: &str,
         handle: Box<dyn SubscriptionHandle<P, M, W>>,
@@ -92,7 +92,7 @@ where
     R: Clone,
     W: Clone,
 {
-    fn new(
+    pub fn new(
         name: &str,
         deserializer: Deserializer<'static, T>,
         handler: Handler<'static, T, M, P, Option<R>>,
@@ -104,11 +104,11 @@ where
             wrapper: None,
         }
     }
-    fn ignore_output(mut self) -> HandleBuilder<T, M, P, R, W> {
+    pub fn ignore_output(mut self) -> HandleBuilder<T, M, P, R, W> {
         self.wrapper = None;
         self
     }
-    fn with_mapped_output(
+    pub fn with_mapped_output(
         mut self,
         type_name: &str,
         mapper: Wrapper<R, W>,
@@ -119,7 +119,7 @@ where
         });
         self
     }
-    fn build(self) -> Box<dyn SubscriptionHandle<P, M, W>> {
+    pub fn build(self) -> Box<dyn SubscriptionHandle<P, M, W>> {
         Box::new(Subscription {
             name: self.name,
             deserializer: self.deserializer,
@@ -132,7 +132,7 @@ impl<T, M, P, R> HandleBuilder<T, M, P, R, R>
 where
     R: Clone,
 {
-    fn with_output(mut self) -> HandleBuilder<T, M, P, R, R> {
+    pub fn with_output(mut self) -> HandleBuilder<T, M, P, R, R> {
         self.wrapper = Some(ResponseWrapper {
             type_name: "UNKNOWN".to_string(),
             convert: &(|_, r| Ok((*r).clone())),
@@ -218,7 +218,7 @@ where
         self.insert_handle(handle)
     }
 
-    fn append_category_handle<T: Send + Clone, R: Clone>(
+    fn append_category_handle(
         &mut self,
         regex: &str,
         handle: Box<dyn SubscriptionHandle<P, M, W>>,

@@ -1,5 +1,5 @@
 /// Message containing Query related instructions for Axon Server
-#[derive(Clone, PartialEq, ::prost::Message)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, PartialEq, ::prost::Message)]
 pub struct QueryProviderOutbound {
     /// Instruction identifier. If this identifier is set, this instruction will be acknowledged via inbound stream
     #[prost(string, tag = "8")]
@@ -14,7 +14,7 @@ pub struct QueryProviderOutbound {
 /// Nested message and enum types in `QueryProviderOutbound`.
 pub mod query_provider_outbound {
     /// The actual instruction to send
-    #[derive(Clone, PartialEq, ::prost::Oneof)]
+    #[derive(serde::Serialize, serde::Deserialize, Clone, PartialEq, ::prost::Oneof)]
     pub enum Request {
         /// Registers a Query Handler with AxonServer
         #[prost(message, tag = "1")]
@@ -40,7 +40,7 @@ pub mod query_provider_outbound {
     }
 }
 /// Queries or Query related instructions from AxonServer for the connected application
-#[derive(Clone, PartialEq, ::prost::Message)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, PartialEq, ::prost::Message)]
 pub struct QueryProviderInbound {
     /// Instruction identifier. If this identifier is set, this instruction will be acknowledged via outbound stream
     #[prost(string, tag = "4")]
@@ -52,7 +52,7 @@ pub struct QueryProviderInbound {
 /// Nested message and enum types in `QueryProviderInbound`.
 pub mod query_provider_inbound {
     /// The actual query or instruction
-    #[derive(Clone, PartialEq, ::prost::Oneof)]
+    #[derive(serde::Serialize, serde::Deserialize, Clone, PartialEq, ::prost::Oneof)]
     pub enum Request {
         /// Acknowledgement of previously sent instruction via outbound stream
         #[prost(message, tag = "1")]
@@ -66,7 +66,7 @@ pub mod query_provider_inbound {
     }
 }
 /// Message indicating that all available responses to an incoming Query have been provided.
-#[derive(Clone, PartialEq, ::prost::Message)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, PartialEq, ::prost::Message)]
 pub struct QueryComplete {
     /// A unique identifier for this message
     #[prost(string, tag = "1")]
@@ -76,7 +76,7 @@ pub struct QueryComplete {
     pub request_id: ::prost::alloc::string::String,
 }
 /// Message representing an incoming Query
-#[derive(Clone, PartialEq, ::prost::Message)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, PartialEq, ::prost::Message)]
 pub struct QueryRequest {
     /// The message ID of the incoming Query
     #[prost(string, tag = "1")]
@@ -108,7 +108,7 @@ pub struct QueryRequest {
     pub component_name: ::prost::alloc::string::String,
 }
 /// Message that represents the Response to a Query
-#[derive(Clone, PartialEq, ::prost::Message)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, PartialEq, ::prost::Message)]
 pub struct QueryResponse {
     /// The unique identifier of the Response Message
     #[prost(string, tag = "1")]
@@ -134,7 +134,7 @@ pub struct QueryResponse {
     pub request_identifier: ::prost::alloc::string::String,
 }
 /// Message that represents a Subscription Query
-#[derive(Clone, PartialEq, ::prost::Message)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, PartialEq, ::prost::Message)]
 pub struct SubscriptionQuery {
     /// A unique identifier for this subscription
     #[prost(string, tag = "1")]
@@ -150,7 +150,7 @@ pub struct SubscriptionQuery {
     pub update_response_type: ::core::option::Option<super::common::SerializedObject>,
 }
 /// A message containing an Update of a Query Subscription Response
-#[derive(Clone, PartialEq, ::prost::Message)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, PartialEq, ::prost::Message)]
 pub struct QueryUpdate {
     /// The unique identifier of this Update
     #[prost(string, tag = "2")]
@@ -176,7 +176,7 @@ pub struct QueryUpdate {
     pub error_message: ::core::option::Option<super::common::ErrorMessage>,
 }
 /// Message indicating that all relevant Updates have been sent for a Subscription Query, and that no further Updates are available
-#[derive(Clone, PartialEq, ::prost::Message)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, PartialEq, ::prost::Message)]
 pub struct QueryUpdateComplete {
     /// The identifier of the Client instance providing the Update
     #[prost(string, tag = "2")]
@@ -186,7 +186,7 @@ pub struct QueryUpdateComplete {
     pub component_name: ::prost::alloc::string::String,
 }
 /// Message indicating that an Error occurred and that no Updates will be sent for a Subscription Query
-#[derive(Clone, PartialEq, ::prost::Message)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, PartialEq, ::prost::Message)]
 pub struct QueryUpdateCompleteExceptionally {
     /// The identifier of the Client instance providing the Update
     #[prost(string, tag = "2")]
@@ -202,7 +202,7 @@ pub struct QueryUpdateCompleteExceptionally {
     pub error_message: ::core::option::Option<super::common::ErrorMessage>,
 }
 /// Message describing possible interactions for a Subscription Query
-#[derive(Clone, PartialEq, ::prost::Message)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, PartialEq, ::prost::Message)]
 pub struct SubscriptionQueryRequest {
     /// The actual request. The Subscription Query is opened using a `subscribe`, which opens the flow of updates. Once
     ///successful, the `get_initial_result` retrieves the initial result of the subscription. For the server to send
@@ -215,7 +215,7 @@ pub mod subscription_query_request {
     /// The actual request. The Subscription Query is opened using a `subscribe`, which opens the flow of updates. Once
     ///successful, the `get_initial_result` retrieves the initial result of the subscription. For the server to send
     ///more updates than the initial number of permits, use the `flow_control` request to send more permits.
-    #[derive(Clone, PartialEq, ::prost::Oneof)]
+    #[derive(serde::Serialize, serde::Deserialize, Clone, PartialEq, ::prost::Oneof)]
     pub enum Request {
         /// Start a Subscription Query with the given details.
         #[prost(message, tag = "1")]
@@ -234,7 +234,7 @@ pub mod subscription_query_request {
     }
 }
 /// Represents a Response Message for a Subscription Query
-#[derive(Clone, PartialEq, ::prost::Message)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, PartialEq, ::prost::Message)]
 pub struct SubscriptionQueryResponse {
     /// The unique identifier for this message
     #[prost(string, tag = "1")]
@@ -255,7 +255,7 @@ pub mod subscription_query_response {
     ///messages is sent for each update available for the query, even before the Initial Result is supplied. The
     ///`complete` or `complete_exceptionally` are sent when the publishing side completed the Subscription Query,
     ///either regularly (`complete`) or because an error occurred (`complete_exceptionally`).
-    #[derive(Clone, PartialEq, ::prost::Oneof)]
+    #[derive(serde::Serialize, serde::Deserialize, Clone, PartialEq, ::prost::Oneof)]
     pub enum Response {
         /// Provides an Initial Response
         #[prost(message, tag = "3")]
@@ -272,7 +272,7 @@ pub mod subscription_query_response {
     }
 }
 /// Message containing details of a Registration of a Query Handler in a component
-#[derive(Clone, PartialEq, ::prost::Message)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, PartialEq, ::prost::Message)]
 pub struct QuerySubscription {
     /// The unique identifier of this Message
     #[prost(string, tag = "1")]

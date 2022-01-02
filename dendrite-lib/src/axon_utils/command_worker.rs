@@ -366,14 +366,18 @@ async fn handle_command<P: VecU8Message + Send + Sync + Clone + std::fmt::Debug 
         )
         .await?;
 
-        let correlation_id = &*command.message_identifier;
+        let command_id = &*command.message_identifier;
+        let correlation_id = correlation_id(command);
         if !events.is_empty() {
-            let aggregate_name = aggregate_definition.projection_name.clone();
-            let aggregate_id = aggregate_id.ok_or_else(|| anyhow!("Missing aggregate id"))?;
+            let aggregate_name = &*aggregate_definition.projection_name.clone();
+            let aggregate_id = &*aggregate_id.ok_or_else(|| anyhow!("Missing aggregate id"))?;
+            let command_name = &*command.name;
             store_events(
                 client,
-                &aggregate_name,
-                &aggregate_id,
+                aggregate_name,
+                aggregate_id,
+                command_name,
+                command_id,
                 correlation_id,
                 &events,
                 seq + 1,
@@ -422,7 +426,9 @@ async fn internal_handle_command<
     let aggregate_context = &mut aggregate_context.lock().await;
     let last_stored_seq = aggregate_context.seq;
     let aggregate_id = aggregate_context.aggregate_id.clone();
-    let correlation_id = &*command.message_identifier;
+    let command_name = &*command.name;
+    let command_id = &*command.message_identifier;
+    let correlation_id = correlation_id(command);
     if let Some(ref aggregate_id) = aggregate_id {
         let mut next_seq: i64 = last_stored_seq + 1;
         for pair in clone_events(&aggregate_context.events) {
@@ -434,6 +440,8 @@ async fn internal_handle_command<
                 &pair,
                 &aggregate_name,
                 aggregate_id,
+                command_name,
+                command_id,
                 correlation_id,
                 next_seq,
             )?;
@@ -481,6 +489,15 @@ async fn internal_handle_command<
         aggregate_context.aggregate_id.clone(),
         last_stored_seq,
     ))
+}
+
+fn correlation_id(command: &Command) -> Option<&str> {
+    match command.meta_data.get("dendrite::correlation_id") {
+        Some(MetaDataValue {
+            data: Some(Data::TextValue(correlation_id)),
+        }) => Some(&**correlation_id),
+        _ => None,
+    }
 }
 
 fn clone_events<P>(
@@ -682,7 +699,9 @@ async fn store_events<P: std::fmt::Debug>(
     client: &mut EventStoreClient<Channel>,
     aggregate_name: &str,
     aggregate_id: &str,
-    correlation_id: &str,
+    command_name: &str,
+    command_id: &str,
+    correlation_id: Option<&str>,
     events: &[(String, Box<dyn ApplicableTo<P, Event>>)],
     next_seq: i64,
 ) -> Result<()> {
@@ -698,6 +717,8 @@ async fn store_events<P: std::fmt::Debug>(
                 e.0,
                 aggregate_name,
                 aggregate_id,
+                command_name,
+                command_id,
                 correlation_id,
                 timestamp,
                 e.1,
@@ -713,7 +734,9 @@ fn encode_event<P>(
     e: &(String, Box<dyn ApplicableTo<P, Event>>),
     aggregate_name: &str,
     aggregate_id: &str,
-    correlation_id: &str,
+    command_name: &str,
+    command_id: &str,
+    correlation_id: Option<&str>,
     next_seq: i64,
 ) -> Result<Event> {
     let now = std::time::SystemTime::now();
@@ -722,6 +745,8 @@ fn encode_event<P>(
         e,
         aggregate_name,
         aggregate_id,
+        command_name,
+        command_id,
         correlation_id,
         timestamp,
         next_seq,
@@ -732,7 +757,9 @@ fn encode_event_with_timestamp<P>(
     e: &(String, Box<dyn ApplicableTo<P, Event>>),
     aggregate_name: &str,
     aggregate_id: &str,
-    correlation_id: &str,
+    command_name: &str,
+    command_id: &str,
+    correlation_id: Option<&str>,
     timestamp: i64,
     next_seq: i64,
 ) -> Event {
@@ -746,10 +773,28 @@ fn encode_event_with_timestamp<P>(
     };
     let message_identifier = Uuid::new_v4();
     let mut meta_data = HashMap::new();
-    let correlation_id = MetaDataValue {
-        data: Some(Data::TextValue(correlation_id.to_string())),
-    };
-    meta_data.insert("correlation_id".to_string(), correlation_id);
+    meta_data.insert(
+        "dendrite::aggregate_name".to_string(),
+        text_to_meta_data_value(aggregate_name),
+    );
+    meta_data.insert(
+        "dendrite::aggregate_id".to_string(),
+        text_to_meta_data_value(aggregate_id),
+    );
+    meta_data.insert(
+        "dendrite::command_name".to_string(),
+        text_to_meta_data_value(command_name),
+    );
+    meta_data.insert(
+        "dendrite::command_id".to_string(),
+        text_to_meta_data_value(command_id),
+    );
+    if let Some(correlation_id) = correlation_id {
+        meta_data.insert(
+            "dendrite::correlation_id".to_string(),
+            text_to_meta_data_value(correlation_id),
+        );
+    }
     Event {
         message_identifier: format!("{}", message_identifier),
         timestamp,
@@ -759,5 +804,11 @@ fn encode_event_with_timestamp<P>(
         payload: Some(e),
         meta_data,
         snapshot: false,
+    }
+}
+
+fn text_to_meta_data_value(text: &str) -> MetaDataValue {
+    MetaDataValue {
+        data: Some(Data::TextValue(text.to_string())),
     }
 }

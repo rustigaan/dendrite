@@ -68,7 +68,7 @@ impl SubmitCommand {
         self
     }
     pub fn correlation_id<'a>(&'a mut self, correlation_id: &str) -> &'a mut SubmitCommand {
-        self.text_annotation("correlation_id", correlation_id);
+        self.text_annotation("dendrite::correlation_id", correlation_id);
         self
     }
     pub async fn send(

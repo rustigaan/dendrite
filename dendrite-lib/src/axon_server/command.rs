@@ -1,5 +1,5 @@
 /// An instruction from the components that provides the Command Handler towards AxonServer.
-#[derive(Clone, PartialEq, ::prost::Message)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, PartialEq, ::prost::Message)]
 pub struct CommandProviderOutbound {
     /// Instruction identifier. If this identifier is set, this instruction will be acknowledged via inbound stream
     #[prost(string, tag = "6")]
@@ -11,7 +11,7 @@ pub struct CommandProviderOutbound {
 /// Nested message and enum types in `CommandProviderOutbound`.
 pub mod command_provider_outbound {
     /// The instruction for AxonServer
-    #[derive(Clone, PartialEq, ::prost::Oneof)]
+    #[derive(serde::Serialize, serde::Deserialize, Clone, PartialEq, ::prost::Oneof)]
     pub enum Request {
         /// Instruction to subscribe this component as handler of a specific type of command
         #[prost(message, tag = "1")]
@@ -31,7 +31,7 @@ pub mod command_provider_outbound {
     }
 }
 /// An instruction or confirmation from AxonServer towards the component that provides the Command Handler
-#[derive(Clone, PartialEq, ::prost::Message)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, PartialEq, ::prost::Message)]
 pub struct CommandProviderInbound {
     /// Instruction identifier. If this identifier is set, this instruction will be acknowledged via outbound stream
     #[prost(string, tag = "3")]
@@ -43,7 +43,7 @@ pub struct CommandProviderInbound {
 /// Nested message and enum types in `CommandProviderInbound`.
 pub mod command_provider_inbound {
     /// The instruction from AxonServer for this component
-    #[derive(Clone, PartialEq, ::prost::Oneof)]
+    #[derive(serde::Serialize, serde::Deserialize, Clone, PartialEq, ::prost::Oneof)]
     pub enum Request {
         /// Acknowledgement of previously sent instruction via outbound stream
         #[prost(message, tag = "1")]
@@ -54,7 +54,7 @@ pub mod command_provider_inbound {
     }
 }
 /// A message representing a Command that needs to be routed to a component capable of handling it
-#[derive(Clone, PartialEq, ::prost::Message)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, PartialEq, ::prost::Message)]
 pub struct Command {
     /// The unique identifier of the Command Message
     #[prost(string, tag = "1")]
@@ -83,7 +83,7 @@ pub struct Command {
     pub component_name: ::prost::alloc::string::String,
 }
 /// Message representing the result of Command Handler execution
-#[derive(Clone, PartialEq, ::prost::Message)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, PartialEq, ::prost::Message)]
 pub struct CommandResponse {
     /// The unique identifier of the response message
     #[prost(string, tag = "1")]
@@ -109,7 +109,7 @@ pub struct CommandResponse {
     pub request_identifier: ::prost::alloc::string::String,
 }
 /// Message describing a component's capability of handling a command type
-#[derive(Clone, PartialEq, ::prost::Message)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, PartialEq, ::prost::Message)]
 pub struct CommandSubscription {
     /// A unique identifier for this subscription. This identifier is returned in Acknowledgements to allow
     ///pipelining of subscription messages
