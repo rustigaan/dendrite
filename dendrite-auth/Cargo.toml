@@ -1,6 +1,6 @@
 [package]
 name = "dendrite_auth"
-version = "0.6.0"
+version = "0.7.0"
 authors = ["Jeroen van Maanen"]
 edition = "2018"
 description = "Support for JWT based authentication / authorization in rustic-dendrite"
