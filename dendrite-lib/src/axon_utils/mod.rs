@@ -16,6 +16,7 @@ use crate::intellij_work_around::Debuggable;
 use anyhow::{anyhow, Result};
 use log::debug;
 use prost::Message;
+use std::future::Future;
 use tonic::transport::Channel;
 
 mod command_submit;
@@ -28,6 +29,7 @@ mod query_processor;
 mod query_submit;
 
 pub use crate::axon_server::SerializedObject;
+use crate::axon_utils::handler_registry::PinFuture;
 pub use command_submit::init as init_command_sender;
 pub use command_submit::SubmitCommand;
 pub use command_worker::command_worker;
@@ -36,8 +38,8 @@ pub use command_worker::{
     empty_aggregate_registry, AggregateContext, AggregateContextTrait, AggregateDefinition,
     AggregateRegistry, EmitApplicableEventsAndResponse, TheAggregateRegistry,
 };
-pub use connection::platform_worker;
 pub use connection::wait_for_server;
+pub use connection::{platform_worker, platform_worker_for};
 pub use event_processor::{event_processor, TokenStore};
 pub use event_query::query_events;
 pub use handler_registry::empty_handler_registry;
@@ -50,6 +52,19 @@ pub struct AxonServerHandle {
     pub display_name: String,
     pub client_id: String,
     pub conn: Channel,
+}
+
+impl AxonServerHandle {
+    pub fn spawn_ref<T>(&self, task: &'static (dyn Fn(AxonServerHandle) -> T))
+    where
+        T: Future + Send + 'static,
+        T::Output: Send,
+    {
+        tokio::spawn((Box::new(task))(self.clone()));
+    }
+    pub fn spawn(&self, task: Box<dyn FnOnce(AxonServerHandle) -> PinFuture<()> + Sync>) {
+        tokio::spawn((task)(self.clone()));
+    }
 }
 
 /// Describes a message that can be serialized to a mutable `Vec<u8>`.

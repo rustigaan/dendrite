@@ -7,8 +7,10 @@ use std::pin::Pin; // better to not use the internals of futures_util
 
 pub(crate) type Applicator<T> = &'static (dyn Fn(&mut T) -> Result<()>);
 pub(crate) type Deserializer<'a, T> = &'a (dyn Fn(Bytes) -> Result<T, prost::DecodeError> + Sync);
-pub(crate) type SendFtr<R> = dyn Future<Output = Result<R>> + Send;
-pub(crate) type Handler<'a, T, M, P, R> = &'a (dyn Fn(T, M, P) -> Pin<Box<SendFtr<R>>> + Sync);
+pub(crate) type SendFuture<R> = dyn Future<Output = R> + Send;
+pub(crate) type PinFuture<R> = Pin<Box<SendFuture<R>>>;
+pub(crate) type ResultFuture<R> = PinFuture<Result<R>>;
+pub(crate) type Handler<'a, T, M, P, R> = &'a (dyn Fn(T, M, P) -> ResultFuture<R> + Sync);
 pub(crate) type Wrapper<R, W> = &'static (dyn Fn(&str, &R) -> Result<W> + Sync);
 
 /// Describes a registry for handlers for a particular type projection (or context) and a particular return type.

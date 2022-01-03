@@ -1,4 +1,6 @@
 use std::collections::HashMap;
+use std::future::Future;
+use std::pin::Pin;
 use std::sync::Arc;
 use anyhow::{anyhow, Context, Result};
 use bytes::Bytes;
@@ -12,7 +14,8 @@ use dendrite_lib::intellij_work_around::Debuggable;
 use crate::{ElasticQueryModel, create_elastic_query_model, wait_for_elastic_search};
 
 pub(crate) type Transcoder = Arc<Box<dyn Fn(Bytes) -> anyhow::Result<Value> + Send + Sync>>;
-pub(crate) type Deserializer<T> = Box<dyn Fn(Bytes) -> Result<T, prost::DecodeError> + Send + Sync>;
+pub(crate) type Deserializer<T> = dyn Fn(Bytes) -> Result<T, prost::DecodeError> + Send + Sync;
+pub(crate) type DeserializerBox<T> = Box<Deserializer<T>>;
 
 #[derive(Clone)]
 pub struct Transcoders(HashMap<String,Transcoder>);
@@ -32,6 +35,10 @@ impl TokenStore for ReplicaQueryModel {
     async fn retrieve_token(&self) -> Result<i64> {
         self.elastic_query_model.retrieve_token().await
     }
+}
+
+pub fn process_events_with(transcoders: Transcoders) -> Box<dyn FnOnce(AxonServerHandle) -> Pin<Box<dyn Future<Output = ()> + Send>> + Sync> {
+    Box::new(move |handle| Box::pin(process_events(handle, transcoders)))
 }
 
 /// Handles events for the `replica` query model.
@@ -138,7 +145,10 @@ impl Transcoders {
         Transcoders(HashMap::new())
     }
 
-    pub fn insert<T: 'static + Serialize>(mut self, message_type: &str, deserializer: Deserializer<T>) -> Transcoders {
+    pub fn insert_ref<T: 'static + Serialize>(self, message_type: &str, deserializer: &'static Deserializer<T>) -> Transcoders {
+        self.insert(message_type, Box::new(deserializer))
+    }
+    pub fn insert<T: 'static + Serialize>(mut self, message_type: &str, deserializer: DeserializerBox<T>) -> Transcoders {
         let transcoder = move |buf: Bytes| {
             let object: T = (deserializer)(buf).map_err(|e| anyhow!("Deserialize protobuf error: {:?}", e))?;
             let result: anyhow::Result<Value> = serde_json::to_value(object).map_err(|e| anyhow!("Serialize JSON error: {:?}", e));
