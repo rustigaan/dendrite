@@ -6,7 +6,7 @@ use elasticsearch::IndexParts;
 use dendrite_lib::axon_server::event::Event;
 use dendrite_lib::axon_utils::{AxonServerHandle, TheHandlerRegistry, TokenStore, empty_handler_registry, event_processor, HandlerRegistry, HandleBuilder};
 use log::{debug, error, warn};
-use serde_json::{Map, Value};
+use serde_json::{json, Map, Value};
 use serde::Serialize;
 use dendrite_lib::intellij_work_around::Debuggable;
 use crate::{ElasticQueryModel, create_elastic_query_model, wait_for_elastic_search};
@@ -94,31 +94,41 @@ async fn handle_registered_event_internal(
         let payload_type = &*serialized_object.r#type;
         let buf = &serialized_object.data;
         debug!("Replica: save {:?} ({:?})", payload_type, buf.len());
-        if let Some(transcoder) = query_model.transcoders.0.get(payload_type) {
-            let event_json = (transcoder)(Bytes::from(buf.clone()))?;
-            debug!("Replica: JSON value: {:?}", event_json);
 
-            let mut meta_data_json = Map::new();
-            for (key, value) in event.meta_data.iter() {
-                meta_data_json.insert(key.to_string(), serde_json::to_value(value)?);
-            }
-            let meta_data_json = Value::Object(meta_data_json);
-
-            let mut json_value = Map::new();
-            json_value.insert("event".to_string(), event_json);
-            json_value.insert("meta_data".to_string(), meta_data_json);
-            let json_value = Value::Object(json_value);
-
-            let es_client = query_model.elastic_query_model.get_client();
-            let response = es_client
-                .index(IndexParts::IndexId(query_model.elastic_query_model.get_identifier(),&*event.message_identifier))
-                .body(json_value)
-                .send()
-                .await;
-            debug!("Elastic Search response: {:?}", response);
-        } else {
-            debug!("Replica: Skipped: {:?}", payload_type);
+        let mut meta_data_json = Map::new();
+        for (key, value) in event.meta_data.iter() {
+            meta_data_json.insert(key.to_string(), serde_json::to_value(value)?);
         }
+        let meta_data_json = Value::Object(meta_data_json);
+
+        let mut json_value = Map::new();
+        json_value.insert("type".to_string(), json!(payload_type));
+        json_value.insert("event_id".to_string(), json!(event.message_identifier));
+        json_value.insert("aggregate_id".to_string(), json!(event.aggregate_identifier));
+        json_value.insert("aggregate_sequence_number".to_string(), json!(event.aggregate_sequence_number));
+        json_value.insert("aggregate_type".to_string(), json!(event.aggregate_type));
+        json_value.insert("timestamp".to_string(), json!(event.timestamp));
+        json_value.insert("meta_data".to_string(), meta_data_json);
+        if event.snapshot {
+            json_value.insert("is_snapshot".to_string(), json!(event.snapshot));
+        }
+        if let Some(transcoder) = query_model.transcoders.0.get(payload_type) {
+            let event_json_result: Result<Value> = (transcoder)(Bytes::from(buf.clone()));
+            if let Ok(event_json) = event_json_result {
+                debug!("Replica: JSON value: {:?}", event_json);
+                json_value.insert("event".to_string(), event_json);
+            }
+        };
+
+        let json_value = Value::Object(json_value);
+
+        let es_client = query_model.elastic_query_model.get_client();
+        let response = es_client
+            .index(IndexParts::IndexId(query_model.elastic_query_model.get_identifier(),&*event.message_identifier))
+            .body(json_value)
+            .send()
+            .await;
+        debug!("Elastic Search response: {:?}", response);
     }
     Ok(None)
 }

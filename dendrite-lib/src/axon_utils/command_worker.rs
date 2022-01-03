@@ -774,14 +774,6 @@ fn encode_event_with_timestamp<P>(
     let message_identifier = Uuid::new_v4();
     let mut meta_data = HashMap::new();
     meta_data.insert(
-        "dendrite::aggregate_name".to_string(),
-        text_to_meta_data_value(aggregate_name),
-    );
-    meta_data.insert(
-        "dendrite::aggregate_id".to_string(),
-        text_to_meta_data_value(aggregate_id),
-    );
-    meta_data.insert(
         "dendrite::command_name".to_string(),
         text_to_meta_data_value(command_name),
     );
