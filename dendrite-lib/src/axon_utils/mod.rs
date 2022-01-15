@@ -38,8 +38,7 @@ pub use command_worker::{
     empty_aggregate_registry, AggregateContext, AggregateContextTrait, AggregateDefinition,
     AggregateRegistry, EmitApplicableEventsAndResponse, TheAggregateRegistry,
 };
-pub use connection::wait_for_server;
-pub use connection::{platform_worker, platform_worker_for};
+pub use connection::{platform_worker, platform_worker_for, wait_for_server};
 pub use event_processor::{event_processor, TokenStore};
 pub use event_query::query_events;
 pub use handler_registry::empty_handler_registry;
