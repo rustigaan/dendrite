@@ -122,14 +122,16 @@ async fn handle_registered_event_internal(
         if let Some(transcoder) = query_model.transcoders.0.get(payload_type) {
             let event_json_result: Result<Value> = (transcoder)(Bytes::from(buf.clone()));
             if let Ok(event_json) = event_json_result {
-                debug!("Replica: JSON value: {:?}", event_json);
+                debug!("Replica: event JSON: {:?}", event_json);
                 json_value.insert("event".to_string(), event_json);
             }
         };
 
         let json_value = Value::Object(json_value);
+        debug!("Replica: JSON value: {:?}", json_value);
 
         let es_client = query_model.elastic_query_model.get_client();
+        debug!("Replica: ElasticSearch client: {:?}", es_client);
         let response = es_client
             .index(IndexParts::IndexId(query_model.elastic_query_model.get_identifier(),&*event.message_identifier))
             .body(json_value)
@@ -154,6 +156,10 @@ impl Transcoders {
             let result: anyhow::Result<Value> = serde_json::to_value(object).map_err(|e| anyhow!("Serialize JSON error: {:?}", e));
             result
         };
+        self.0.insert(message_type.to_string(), Arc::new(Box::new(transcoder)));
+        self
+    }
+    pub fn insert_transcoder(mut self, message_type: &str, transcoder: &'static (dyn Fn(Bytes) -> anyhow::Result<Value> + Send + Sync)) -> Transcoders {
         self.0.insert(message_type.to_string(), Arc::new(Box::new(transcoder)));
         self
     }

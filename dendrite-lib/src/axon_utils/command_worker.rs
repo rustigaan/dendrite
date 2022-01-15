@@ -565,9 +565,22 @@ pub async fn command_worker(
             Ok(Some(inbound)) => {
                 debug!("Inbound message: {:?}", Debuggable::from(&inbound));
                 if let Some(command_provider_inbound::Request::Command(command)) = inbound.request {
-                    let command_name = command.name.clone();
-                    let mut result = Err(anyhow!("Could not find aggregate handler"));
-                    if let Some(aggregate_name) = command_to_aggregate_mapping.get(&command_name) {
+                    let command_name = &*command.name;
+                    let message_id = &*command.message_identifier;
+                    let meta_data = &command.meta_data;
+                    let compound_context;
+                    let context = match meta_data.get("dendrite::correlation_id") {
+                        Some(MetaDataValue {
+                            data: Some(Data::TextValue(correlation_id)),
+                        }) => {
+                            compound_context = format!("{}({})", message_id, correlation_id);
+                            &*compound_context
+                        }
+                        _ => message_id,
+                    };
+                    let mut result =
+                        Err(anyhow!("Could not find aggregate handler: {:?}", context));
+                    if let Some(aggregate_name) = command_to_aggregate_mapping.get(command_name) {
                         if let Some(aggregate_definition) = aggregate_registry.get(aggregate_name) {
                             result = aggregate_definition
                                 .handle(&command, &mut event_store_client)
@@ -576,8 +589,10 @@ pub async fn command_worker(
                     }
 
                     match result.as_ref() {
-                        Err(e) => warn!("Error while handling command: {:?}", e),
-                        Ok(result) => debug!("Result from command handler: {:?}", result),
+                        Err(e) => warn!("Error while handling command: {:?}: {:?}", context, e),
+                        Ok(result) => {
+                            debug!("Result from command handler: {:?}: {:?}", context, result)
+                        }
                     }
 
                     let axon_command_result = AxonCommandResult {
