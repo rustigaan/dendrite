@@ -20,15 +20,40 @@ pub(crate) type Wrapper<R, W> = &'static (dyn Fn(&str, &R) -> Result<W> + Sync);
 /// So it has to be wrapped in a closure that `Box::pin`s the return value, like this:
 ///
 /// ```rust
-/// handler_registry.insert(
+/// # use anyhow::anyhow;
+/// # use dendrite_lib::axon_utils::empty_handler_registry;
+/// # use dendrite_lib::axon_utils::{HandlerRegistry,TheHandlerRegistry};
+/// #
+/// # #[derive(Clone)]
+/// # struct Model {};
+/// #
+/// # #[derive(Clone)]
+/// # struct Projection {};
+/// #
+/// # #[derive(Clone)]
+/// # struct GreetCommand {};
+/// # impl GreetCommand {
+/// #    fn decode(buf: bytes::Bytes) -> Result<GreetCommand, prost::DecodeError> {
+/// #         Ok(GreetCommand{})
+/// #    }
+/// # }
+/// #
+/// async fn handle_greet_command(command: GreetCommand) -> anyhow::Result<()> {
+///     Ok(())
+/// }
+///
+/// let mut handler_registry: TheHandlerRegistry<Projection,Model,Option<Projection>> = empty_handler_registry();
+/// let result = handler_registry.insert(
 ///     "GreetCommand",
 ///     &GreetCommand::decode,
-///     &(|c| Box::pin(handle_greet_command(c)))
-/// )?;
+///     &(|c, _: Model, _: Projection| Box::pin(handle_greet_command(c)))
+/// );
+/// assert!(result.is_ok());
 /// ```
 ///
-/// P: type of the projection that serves as context for the handlers
-/// W: type of the wrapped result
+/// *P*: type of the projection that serves as context for the handlers
+/// *M*: type of the model (e.g., kind of aggregate, or query model; this typically contains a way to connect to an external service for persistence or delegation)
+/// *W*: type of the wrapped result
 pub trait HandlerRegistry<P, M, W>: Send {
     fn register(&mut self, applicator: Applicator<Self>) -> Result<()>;
     fn insert<T: Send + Clone>(
