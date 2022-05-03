@@ -1,5 +1,4 @@
-use super::{wait_for_server, AxonServerHandle, CommandSink, VecU8Message};
-use crate::axon_server::command::command_service_client::CommandServiceClient;
+use super::{wait_for_server, AxonServerHandle, AxonServerHandleTrait, CommandSink, VecU8Message};
 use crate::axon_server::command::Command;
 use crate::axon_server::common::{meta_data_value, MetaDataValue};
 use crate::axon_server::SerializedObject;
@@ -126,29 +125,84 @@ impl CommandSink for AxonServerHandle {
 }
 
 async fn submit_command(
-    this: &AxonServerHandle,
+    this: &dyn AxonServerHandleTrait,
     message: SerializedObject,
     meta_data: HashMap<String, MetaDataValue>,
 ) -> Result<Option<SerializedObject>> {
     debug!("Message: {:?}", Debuggable::from(&message));
-    let mut client = CommandServiceClient::new(this.conn.clone());
-    debug!("Command Service Client: {:?}", client);
     let uuid = Uuid::new_v4();
     let command = Command {
         message_identifier: uuid.to_string(),
         name: message.r#type.clone(),
         payload: Some(message),
-        client_id: this.client_id.clone(),
-        component_name: this.display_name.clone(),
+        client_id: this.client_id().to_string(),
+        component_name: this.display_name().to_string(),
         meta_data,
         processing_instructions: Vec::new(),
         timestamp: 0,
     };
-    let response = client.dispatch(command).await?.into_inner();
+    let response = this.dispatch(command).await?.into_inner();
     debug!("Response: {:?}", Debuggable::from(&response));
     if let Some(error_message) = response.error_message {
         return Err(anyhow!(error_message.message));
     } else {
         Ok(response.payload)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::axon_server::command::CommandResponse;
+    use super::super::AxonServerHandleAsyncTrait;
+    use mockall::mock;
+
+    mock! {
+        AxonServerHandle {}
+        impl AxonServerHandleTrait for AxonServerHandle {
+            fn client_id(&self) -> &str;
+            fn display_name(&self) -> &str;
+        }
+        #[tonic::async_trait]
+        impl AxonServerHandleAsyncTrait for AxonServerHandle
+        {
+            async fn dispatch(&self, request: Command)
+                -> Result<tonic::Response<CommandResponse>, tonic::Status>;
+        }
+    }
+
+    #[tokio::test]
+    async fn test_submit_command() -> Result<()> {
+        let mut axon_server_handle = MockAxonServerHandle::new();
+        let payload_type = "test-payload";
+        let payload = SerializedObject {
+            r#type: payload_type.to_string(),
+            revision: "".to_string(),
+            data: vec![],
+        };
+        let mut command_response = CommandResponse::default();
+        command_response.payload = Some(payload);
+        let tonic_command_response = tonic::Response::new(command_response);
+        axon_server_handle
+            .expect_client_id()
+            .return_const("axon-id".to_string());
+        axon_server_handle
+            .expect_display_name()
+            .return_const("axon-name".to_string());
+        axon_server_handle
+            .expect_dispatch()
+            .return_once(move |_| Ok(tonic_command_response));
+
+        let message = SerializedObject {
+            r#type: "unknown".to_string(),
+            revision: "1".to_string(),
+            data: vec![],
+        };
+        let meta_data = HashMap::default();
+
+        let actual_payload = submit_command(&axon_server_handle, message, meta_data).await?;
+        let serialized_object = actual_payload.expect("Missing serialized object");
+        assert_eq!(&serialized_object.r#type, payload_type);
+        Ok(())
     }
 }

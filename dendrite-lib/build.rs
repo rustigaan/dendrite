@@ -15,7 +15,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         ],
         &["proto/axon_server"]
     )?;
-    fs::remove_file("src/google.protobuf.rs")?;
+    fs::remove_file("src/google.protobuf.rs").ok();
     fs::create_dir_all("src/axon_server").ok();
     fs::rename("src/io.axoniq.axonserver.grpc.common.rs", "src/axon_server/common.rs")?;
     fs::rename("src/io.axoniq.axonserver.grpc.command.rs", "src/axon_server/command.rs")?;

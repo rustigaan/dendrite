@@ -113,7 +113,7 @@ fn create_output_stream(
         request.number_of_permits = permits_batch_size;
 
         while let Some(axon_event_processed) = rx.recv().await {
-            debug!("Event processed: {:?}", axon_event_processed);
+            debug!("Event processed: {:?}", axon_event_processed.message_identifier);
             permits -= 1;
             if permits <= permits_batch_size {
                 debug!("Event Processor: stream: send more flow-control permits: amount: {:?}", permits_batch_size);

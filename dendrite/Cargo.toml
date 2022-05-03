@@ -2,7 +2,7 @@
 name = "dendrite"
 version = "0.10.1"
 authors = ["Jeroen van Maanen"]
-edition = "2018"
+edition = "2021"
 description = "Event Sourcing and CQRS in Rust with AxonServer."
 readme = "README.md"
 homepage = "https://github.com/rustigaan/dendrite"

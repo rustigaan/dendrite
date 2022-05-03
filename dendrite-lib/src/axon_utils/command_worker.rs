@@ -163,6 +163,7 @@ impl<P: VecU8Message + Send + Sync + Clone> Clone for AggregateContext<P> {
 /// Struct that can be returned by a command handler to supply both the events that have
 /// to be emitted and the response to the caller.
 #[derive(Clone, Debug)]
+#[allow(dead_code)]
 pub struct EmitEventsAndResponse {
     events: Vec<SerializedObject>,
     response: Option<SerializedObject>,

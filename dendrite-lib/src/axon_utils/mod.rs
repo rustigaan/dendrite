@@ -28,6 +28,8 @@ mod handler_registry;
 mod query_processor;
 mod query_submit;
 
+use crate::axon_server::command::command_service_client::CommandServiceClient;
+use crate::axon_server::command::{Command,CommandResponse};
 pub use crate::axon_server::SerializedObject;
 use crate::axon_utils::handler_registry::PinFuture;
 pub use command_submit::init as init_command_sender;
@@ -63,6 +65,35 @@ impl AxonServerHandle {
     }
     pub fn spawn(&self, task: Box<dyn FnOnce(AxonServerHandle) -> PinFuture<()> + Sync>) {
         tokio::spawn((task)(self.clone()));
+    }
+}
+
+pub trait AxonServerHandleTrait: Sync + AxonServerHandleAsyncTrait {
+    fn client_id(&self) -> &str;
+    fn display_name(&self) -> &str;
+}
+#[tonic::async_trait]
+pub trait AxonServerHandleAsyncTrait
+{
+    async fn dispatch(&self, request: Command)
+        -> Result<tonic::Response<CommandResponse>, tonic::Status>;
+}
+impl AxonServerHandleTrait for AxonServerHandle {
+    fn client_id(&self) -> &str {
+        &self.client_id
+    }
+    fn display_name(&self) -> &str {
+        &self.display_name
+    }
+}
+#[tonic::async_trait]
+impl AxonServerHandleAsyncTrait for AxonServerHandle
+{
+    async fn dispatch(&self, request: Command)
+        -> Result<tonic::Response<CommandResponse>, tonic::Status>
+    {
+        let mut client = CommandServiceClient::new(self.conn.clone());
+        client.dispatch(request).await
     }
 }
 
