@@ -7,6 +7,9 @@ use anyhow::{anyhow, Result};
 use log::debug;
 use std::collections::HashMap;
 use std::vec::Vec;
+use tonic::{
+    transport::{Endpoint, Server, Uri}
+};
 use uuid::Uuid;
 
 /// Polls AxonServer until it is available and ready.
@@ -154,26 +157,48 @@ async fn submit_command(
 mod tests {
     use super::*;
     use crate::axon_server::command::CommandResponse;
-    use super::super::AxonServerHandleAsyncTrait;
+    use super::super::AxonServerHandle;
     use mockall::mock;
-
-    mock! {
-        AxonServerHandle {}
-        impl AxonServerHandleTrait for AxonServerHandle {
-            fn client_id(&self) -> &str;
-            fn display_name(&self) -> &str;
-        }
-        #[tonic::async_trait]
-        impl AxonServerHandleAsyncTrait for AxonServerHandle
-        {
-            async fn dispatch(&self, request: Command)
-                -> Result<tonic::Response<CommandResponse>, tonic::Status>;
-        }
-    }
 
     #[tokio::test]
     async fn test_submit_command() -> Result<()> {
-        let mut axon_server_handle = MockAxonServerHandle::new();
+        let (client, server) = tokio::io::duplex(1024);
+
+        let greeter = MyGreeter::default();
+
+        tokio::spawn(async move {
+            Server::builder()
+                .add_service(GreeterServer::new(greeter))
+                .serve_with_incoming(futures::stream::iter(vec![Ok::<_, std::io::Error>(server)]))
+                .await
+        });
+
+        // Move client to an option so we can _move_ the inner value
+        // on the first attempt to connect. All other attempts will fail.
+        let mut client = Some(client);
+        let channel = Endpoint::try_from("http://[::]:50051")?
+            .connect_with_connector(service_fn(move |_: Uri| {
+                let client = client.take();
+
+                async move {
+                    if let Some(client) = client {
+                        Ok(client)
+                    } else {
+                        Err(std::io::Error::new(
+                            std::io::ErrorKind::Other,
+                            "Client already taken",
+                        ))
+                    }
+                }
+            }))
+            .await?;
+
+        let axon_server_handle = AxonServerHandle {
+            display_name: "Test AxonServer handle".to_string(),
+            client_id: "test-client".to_string(),
+            conn: channel
+        };
+
         let payload_type = "test-payload";
         let payload = SerializedObject {
             r#type: payload_type.to_string(),
@@ -183,15 +208,6 @@ mod tests {
         let mut command_response = CommandResponse::default();
         command_response.payload = Some(payload);
         let tonic_command_response = tonic::Response::new(command_response);
-        axon_server_handle
-            .expect_client_id()
-            .return_const("axon-id".to_string());
-        axon_server_handle
-            .expect_display_name()
-            .return_const("axon-name".to_string());
-        axon_server_handle
-            .expect_dispatch()
-            .return_once(move |_| Ok(tonic_command_response));
 
         let message = SerializedObject {
             r#type: "unknown".to_string(),
