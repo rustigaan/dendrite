@@ -17,6 +17,9 @@ use anyhow::{anyhow, Result};
 use log::debug;
 use prost::Message;
 use std::future::Future;
+use std::pin::Pin;
+use futures_core::Stream;
+use tonic::{Request, Streaming};
 use tonic::transport::Channel;
 
 mod command_submit;
@@ -29,7 +32,9 @@ mod query_processor;
 mod query_submit;
 
 use crate::axon_server::command::command_service_client::CommandServiceClient;
-use crate::axon_server::command::{Command,CommandResponse};
+use crate::axon_server::command::{Command, CommandProviderInbound, CommandProviderOutbound, CommandResponse};
+use crate::axon_server::event::{Confirmation, Event, GetAggregateEventsRequest};
+use crate::axon_server::event::event_store_client::EventStoreClient;
 pub use crate::axon_server::SerializedObject;
 use crate::axon_utils::handler_registry::PinFuture;
 pub use command_submit::init as init_command_sender;
@@ -68,15 +73,48 @@ impl AxonServerHandle {
     }
 }
 
-pub trait AxonServerHandleTrait: Sync + AxonServerHandleAsyncTrait {
+type AxonServerHandleTraitBox = Box<dyn AxonServerHandleTrait>;
+
+type StaticCommandProviderOutboundStream = dyn Stream<Item = CommandProviderOutbound> + Send + 'static;
+type CommandProviderOutboundStreamBox = Pin<Box<StaticCommandProviderOutboundStream>>;
+
+struct ServerHandle {
+    conn: Channel
+}
+
+#[tonic::async_trait]
+trait ServerHandleTrait {
+    async fn open_command_provider_inbound_stream(&self, request: CommandProviderOutboundStreamBox)
+        -> Result<tonic::Response<Streaming<CommandProviderInbound>>, tonic::Status>;
+}
+#[tonic::async_trait]
+impl ServerHandleTrait for ServerHandle
+{
+    async fn open_command_provider_inbound_stream(&self, request: CommandProviderOutboundStreamBox)
+        -> Result<tonic::Response<Streaming<CommandProviderInbound>>, tonic::Status>
+    {
+        let request = Request::new(request as CommandProviderOutboundStreamBox);
+        let mut client = CommandServiceClient::new(self.conn.clone());
+        client.open_stream(request).await
+    }
+}
+
+pub trait AxonServerHandleTrait: Send + Sync + std::fmt::Debug + AxonServerHandleAsyncTrait {
     fn client_id(&self) -> &str;
     fn display_name(&self) -> &str;
+    fn box_clone(&self) -> AxonServerHandleTraitBox;
 }
 #[tonic::async_trait]
 pub trait AxonServerHandleAsyncTrait
 {
     async fn dispatch(&self, request: Command)
         -> Result<tonic::Response<CommandResponse>, tonic::Status>;
+    async fn open_command_provider_inbound_stream(&self, request: CommandProviderOutboundStreamBox)
+        -> Result<tonic::Response<Streaming<CommandProviderInbound>>, tonic::Status>;
+    async fn list_aggregate_events(&self, request: GetAggregateEventsRequest)
+        -> Result<tonic::Response<Streaming<Event>>, tonic::Status>;
+    async fn append_events(&self, events: Vec<Event>)
+        -> Result<tonic::Response<Confirmation>, tonic::Status>;
 }
 impl AxonServerHandleTrait for AxonServerHandle {
     fn client_id(&self) -> &str {
@@ -84,6 +122,9 @@ impl AxonServerHandleTrait for AxonServerHandle {
     }
     fn display_name(&self) -> &str {
         &self.display_name
+    }
+    fn box_clone(&self) -> AxonServerHandleTraitBox {
+        Box::new(core::clone::Clone::clone(self))
     }
 }
 #[tonic::async_trait]
@@ -94,6 +135,25 @@ impl AxonServerHandleAsyncTrait for AxonServerHandle
     {
         let mut client = CommandServiceClient::new(self.conn.clone());
         client.dispatch(request).await
+    }
+    async fn open_command_provider_inbound_stream(&self, request: CommandProviderOutboundStreamBox)
+        -> Result<tonic::Response<Streaming<CommandProviderInbound>>, tonic::Status>
+    {
+        let mut client = CommandServiceClient::new(self.conn.clone());
+        client.open_stream(request).await
+    }
+    async fn list_aggregate_events(&self, request: GetAggregateEventsRequest)
+                                   -> Result<tonic::Response<Streaming<Event>>, tonic::Status>
+    {
+        let mut client = EventStoreClient::new(self.conn.clone());
+        client.list_aggregate_events(request).await
+    }
+    async fn append_events(&self, events: Vec<Event>)
+        -> Result<tonic::Response<Confirmation>, tonic::Status>
+    {
+        let mut client = EventStoreClient::new(self.conn.clone());
+        let request = Request::new(futures_util::stream::iter(events));
+        client.append_event(request).await
     }
 }
 

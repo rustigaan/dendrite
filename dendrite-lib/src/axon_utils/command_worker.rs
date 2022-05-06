@@ -1,29 +1,26 @@
-use super::event_query::query_events_from_client;
+use super::event_query::query_events;
 use super::handler_registry::{HandlerRegistry, SubscriptionHandle, TheHandlerRegistry};
-use super::{axon_serialize, ApplicableTo, AxonServerHandle, VecU8Message};
+use super::{axon_serialize, ApplicableTo, AxonServerHandleTraitBox, VecU8Message};
 use crate::axon_server::command::command_provider_outbound;
-use crate::axon_server::command::command_service_client::CommandServiceClient;
 use crate::axon_server::command::{command_provider_inbound, Command};
 use crate::axon_server::command::{CommandProviderOutbound, CommandResponse, CommandSubscription};
 use crate::axon_server::common::meta_data_value::Data;
 use crate::axon_server::common::MetaDataValue;
-use crate::axon_server::event::event_store_client::EventStoreClient;
 use crate::axon_server::event::Event;
 use crate::axon_server::{ErrorMessage, FlowControl, SerializedObject};
 use crate::intellij_work_around::Debuggable;
 use anyhow::{anyhow, Result};
 use async_stream::stream;
-use futures_core::stream::Stream;
+use futures_core::Stream;
 use log::{debug, error, warn};
 use lru::LruCache;
 use prost::Message;
 use std::collections::HashMap;
 use std::fmt::{Debug, Formatter};
 use std::ops::Deref;
+use std::pin::Pin;
 use std::sync::{Arc, Mutex};
 use tokio::sync::mpsc::{channel, Receiver, Sender};
-use tonic::transport::Channel;
-use tonic::Request;
 use uuid::Uuid;
 
 /// Creates a struct that can be returned by a command handler to supply the events that have
@@ -58,7 +55,7 @@ pub trait AggregateContextTrait<P: VecU8Message + Send + Sync + Clone + 'static>
 #[derive(Debug)]
 pub struct AggregateContext<P: VecU8Message + Send + Sync + Clone + 'static> {
     aggregate_definition: Arc<AggregateDefinition<P>>,
-    event_store_client: EventStoreClient<Channel>,
+    axon_server_handle: AxonServerHandleTraitBox,
     events: Vec<(String, Box<dyn ApplicableTo<P, Event>>)>,
     pub aggregate_id: Option<String>,
     projection: P,
@@ -76,7 +73,6 @@ where
     }
 
     async fn get_projection(&mut self, aggregate_id: &str) -> Result<P> {
-        let client = &mut self.event_store_client.clone();
         if let Some(ref existing_aggregate_id) = self.aggregate_id {
             if aggregate_id != existing_aggregate_id {
                 return Err(anyhow!(
@@ -105,7 +101,7 @@ where
             }
         }
         if self.seq < 0 {
-            let events = query_events_from_client(client, &aggregate_id).await?;
+            let events = query_events(self.axon_server_handle.box_clone(), &aggregate_id).await?;
             for event in events {
                 debug!("Replaying event: {:?}", Debuggable::from(&event));
                 let event_seq = event.aggregate_sequence_number;
@@ -151,7 +147,7 @@ impl<P: VecU8Message + Send + Sync + Clone> Clone for AggregateContext<P> {
         }
         Self {
             aggregate_definition: self.aggregate_definition.clone(),
-            event_store_client: self.event_store_client.clone(),
+            axon_server_handle: self.axon_server_handle.box_clone(),
             events: cloned_events,
             aggregate_id: self.aggregate_id.clone(),
             projection: self.projection.clone(),
@@ -261,7 +257,7 @@ pub trait AggregateHandle: Send + Sync {
     async fn handle(
         &self,
         command: &Command,
-        client: &mut EventStoreClient<Channel>,
+        axon_server_handle: AxonServerHandleTraitBox,
     ) -> Result<Option<EmitEventsAndResponse>>;
     fn command_names(&self) -> Vec<String>;
 }
@@ -276,9 +272,9 @@ impl<P: VecU8Message + Send + Sync + Clone + std::fmt::Debug + 'static> Aggregat
     async fn handle(
         &self,
         command: &Command,
-        client: &mut EventStoreClient<Channel>,
+        axon_server_handle: AxonServerHandleTraitBox,
     ) -> Result<Option<EmitEventsAndResponse>> {
-        handle_command(command, self.clone(), client).await
+        handle_command(command, self.clone(), axon_server_handle).await
     }
     fn command_names(&self) -> Vec<String> {
         let mut result = Vec::new();
@@ -347,7 +343,7 @@ pub fn create_aggregate_definition<P: VecU8Message + Send + Sync + Clone>(
 async fn handle_command<P: VecU8Message + Send + Sync + Clone + std::fmt::Debug + 'static>(
     command: &Command,
     aggregate_definition: Arc<AggregateDefinition<P>>,
-    client: &mut EventStoreClient<Channel>,
+    axon_server_handle: AxonServerHandleTraitBox,
 ) -> Result<Option<EmitEventsAndResponse>> {
     debug!("Incoming command: {:?}", Debuggable::from(command));
 
@@ -363,7 +359,7 @@ async fn handle_command<P: VecU8Message + Send + Sync + Clone + std::fmt::Debug 
             command,
             data,
             aggregate_definition.clone(),
-            client,
+            axon_server_handle.box_clone(),
         )
         .await?;
 
@@ -374,7 +370,7 @@ async fn handle_command<P: VecU8Message + Send + Sync + Clone + std::fmt::Debug 
             let aggregate_id = &*aggregate_id.ok_or_else(|| anyhow!("Missing aggregate id"))?;
             let command_name = &*command.name;
             store_events(
-                client,
+                axon_server_handle,
                 aggregate_name,
                 aggregate_id,
                 command_name,
@@ -395,17 +391,18 @@ async fn handle_command<P: VecU8Message + Send + Sync + Clone + std::fmt::Debug 
 }
 
 async fn internal_handle_command<
+    'a,
     P: VecU8Message + Send + Sync + Clone + std::fmt::Debug + 'static,
 >(
-    command_handler: &dyn SubscriptionHandle<
+    command_handler: &'a dyn SubscriptionHandle<
         Arc<async_lock::Mutex<AggregateContext<P>>>,
         Command,
         SerializedObject,
     >,
-    command: &Command,
+    command: &'a Command,
     data: Vec<u8>,
     aggregate_definition: Arc<AggregateDefinition<P>>,
-    event_store_client: &mut EventStoreClient<Channel>,
+    axon_server_handle: AxonServerHandleTraitBox,
 ) -> Result<(
     Option<SerializedObject>,
     Vec<(String, Box<dyn ApplicableTo<P, Event>>)>,
@@ -415,7 +412,7 @@ async fn internal_handle_command<
     let empty_projection: P = (aggregate_definition.empty_projection.factory)();
     let aggregate_context = Arc::new(async_lock::Mutex::new(AggregateContext {
         aggregate_definition,
-        event_store_client: event_store_client.clone(),
+        axon_server_handle: axon_server_handle.box_clone(),
         events: Vec::new(),
         aggregate_id: None,
         projection: empty_projection,
@@ -540,13 +537,10 @@ struct AxonCommandResult {
 
 /// Subscribes  to commands, verifies them against the command projection and sends emitted events to AxonServer.
 pub async fn command_worker(
-    axon_server_handle: AxonServerHandle,
+    axon_server_handle: AxonServerHandleTraitBox,
     aggregate_registry: &mut TheAggregateRegistry,
 ) -> Result<()> {
     debug!("Command worker: start");
-
-    let mut client = CommandServiceClient::new(axon_server_handle.conn.clone());
-    let mut event_store_client = EventStoreClient::new(axon_server_handle.conn.clone());
 
     let mut command_to_aggregate_mapping = HashMap::new();
     let mut command_vec: Vec<String> = vec![];
@@ -554,10 +548,10 @@ pub async fn command_worker(
 
     let (tx, rx): (Sender<AxonCommandResult>, Receiver<AxonCommandResult>) = channel(10);
 
-    let outbound = create_output_stream(axon_server_handle, command_vec, rx);
+    let outbound = create_output_stream(axon_server_handle.box_clone(), command_vec, rx);
 
     debug!("Command worker: calling open_stream");
-    let response = client.open_stream(Request::new(outbound)).await?;
+    let response = axon_server_handle.open_command_provider_inbound_stream(outbound).await?;
     debug!("Stream response: {:?}", response);
 
     let mut inbound = response.into_inner();
@@ -584,7 +578,7 @@ pub async fn command_worker(
                     if let Some(aggregate_name) = command_to_aggregate_mapping.get(command_name) {
                         if let Some(aggregate_definition) = aggregate_registry.get(aggregate_name) {
                             result = aggregate_definition
-                                .handle(&command, &mut event_store_client)
+                                .handle(&command, axon_server_handle.box_clone())
                                 .await
                         }
                     }
@@ -615,14 +609,14 @@ pub async fn command_worker(
 }
 
 fn create_output_stream(
-    axon_server_handle: AxonServerHandle,
+    axon_server_handle: AxonServerHandleTraitBox,
     commands: Vec<String>,
     mut rx: Receiver<AxonCommandResult>,
-) -> impl Stream<Item = CommandProviderOutbound> {
-    stream! {
+) -> Pin<Box<dyn Stream<Item = CommandProviderOutbound> + Send + 'static>> {
+    let stream = stream! {
         debug!("Command worker: stream: start: {:?}", rx);
-        let client_id = axon_server_handle.client_id;
-        let component_name = axon_server_handle.display_name;
+        let client_id = axon_server_handle.client_id().to_string();
+        let component_name = axon_server_handle.display_name().to_string();
         for command_name in commands {
             debug!("Command worker: stream: subscribe to command type: {:?}", command_name);
             let subscription_id = Uuid::new_v4();
@@ -708,20 +702,21 @@ fn create_output_stream(
         }
 
         // debug!("Command worker: stream: stop");
-    }
+    };
+    Box::pin(stream)
 }
 
-async fn store_events<P: std::fmt::Debug>(
-    client: &mut EventStoreClient<Channel>,
-    aggregate_name: &str,
-    aggregate_id: &str,
-    command_name: &str,
-    command_id: &str,
-    correlation_id: Option<&str>,
-    events: &[(String, Box<dyn ApplicableTo<P, Event>>)],
+async fn store_events<'a, P: std::fmt::Debug>(
+    axon_server_handle: AxonServerHandleTraitBox,
+    aggregate_name: &'a str,
+    aggregate_id: &'a str,
+    command_name: &'a str,
+    command_id: &'a str,
+    correlation_id: Option<&'a str>,
+    events: &'a [(String, Box<dyn ApplicableTo<P, Event>>)],
     next_seq: i64,
 ) -> Result<()> {
-    debug!("Store events: Client: {:?}: events: {:?}", client, events);
+    debug!("Store events: Handle: {:?}: events: {:?}", &axon_server_handle.display_name(), events);
 
     let now = std::time::SystemTime::now();
     let timestamp = now.duration_since(std::time::UNIX_EPOCH)?.as_millis() as i64;
@@ -741,8 +736,7 @@ async fn store_events<P: std::fmt::Debug>(
             )
         })
         .collect();
-    let request = Request::new(futures_util::stream::iter(event_messages));
-    client.append_event(request).await?;
+    axon_server_handle.append_events(event_messages).await?;
     Ok(())
 }
 

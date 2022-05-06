@@ -1,23 +1,10 @@
-use super::AxonServerHandle;
-use crate::axon_server::event::event_store_client::EventStoreClient;
+use super::AxonServerHandleTraitBox;
 use crate::axon_server::event::{Event, GetAggregateEventsRequest};
 use anyhow::Result;
-use tonic::transport::Channel;
 
 /// Fetch all events for a given aggregate.
 pub async fn query_events(
-    axon_server_handle: &AxonServerHandle,
-    aggregate_identifier: &str,
-) -> Result<Vec<Event>> {
-    let axon_server_handle = axon_server_handle.clone();
-    let conn = axon_server_handle.conn;
-    let mut client = EventStoreClient::new(conn);
-    query_events_from_client(&mut client, aggregate_identifier).await
-}
-
-/// Fetch all events for a given aggregate.
-pub async fn query_events_from_client(
-    client: &mut EventStoreClient<Channel>,
+    axon_server_handle: AxonServerHandleTraitBox,
     aggregate_identifier: &str,
 ) -> Result<Vec<Event>> {
     let request = GetAggregateEventsRequest {
@@ -28,7 +15,7 @@ pub async fn query_events_from_client(
         min_token: 0,
     };
     let mut result = Vec::new();
-    let mut stream = client.list_aggregate_events(request).await?.into_inner();
+    let mut stream = axon_server_handle.list_aggregate_events(request).await?.into_inner();
     while let Some(event) = stream.message().await? {
         result.push(event.clone());
     }

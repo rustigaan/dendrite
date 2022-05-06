@@ -1,4 +1,4 @@
-use super::{wait_for_server, AxonServerHandle, AxonServerHandleTrait, CommandSink, VecU8Message};
+use super::{wait_for_server, AxonServerHandle, AxonServerHandleTrait, AxonServerHandleTraitBox, CommandSink, VecU8Message};
 use crate::axon_server::command::Command;
 use crate::axon_server::common::{meta_data_value, MetaDataValue};
 use crate::axon_server::SerializedObject;
@@ -93,7 +93,7 @@ impl SubmitCommand {
                 revision: "1".to_string(),
                 data: buf,
             };
-            submit_command(axon_server_handle, serialized_command, meta_data).await
+            submit_command(Box::new(axon_server_handle.clone()), serialized_command, meta_data).await
         } else {
             Err(anyhow!("Missing command"))
         }
@@ -120,12 +120,12 @@ impl CommandSink for AxonServerHandle {
             revision: "1".to_string(),
             data: buf,
         };
-        submit_command(self, serialized_command, HashMap::new()).await
+        submit_command(self.box_clone(), serialized_command, HashMap::new()).await
     }
 }
 
 async fn submit_command(
-    this: &dyn AxonServerHandleTrait,
+    this: AxonServerHandleTraitBox,
     message: SerializedObject,
     meta_data: HashMap<String, MetaDataValue>,
 ) -> Result<Option<SerializedObject>> {
@@ -154,20 +154,30 @@ async fn submit_command(
 mod tests {
     use super::*;
     use crate::axon_server::command::CommandResponse;
-    use super::super::AxonServerHandleAsyncTrait;
+    use crate::axon_server::event::{Confirmation,Event};
+    use super::super::{AxonServerHandleAsyncTrait, CommandProviderInbound, CommandProviderOutboundStreamBox, GetAggregateEventsRequest};
     use mockall::mock;
+    use tonic::{Response, Status, Streaming};
 
     mock! {
+        #[derive(Debug)]
         AxonServerHandle {}
         impl AxonServerHandleTrait for AxonServerHandle {
             fn client_id(&self) -> &str;
             fn display_name(&self) -> &str;
+            fn box_clone(&self) -> AxonServerHandleTraitBox;
         }
         #[tonic::async_trait]
         impl AxonServerHandleAsyncTrait for AxonServerHandle
         {
             async fn dispatch(&self, request: Command)
-                -> Result<tonic::Response<CommandResponse>, tonic::Status>;
+                -> Result<Response<CommandResponse>, Status>;
+            async fn open_command_provider_inbound_stream(&self, request: CommandProviderOutboundStreamBox)
+                -> Result<Response<Streaming<CommandProviderInbound>>, Status>;
+            async fn append_events(&self, events: Vec<Event>)
+                -> Result<Response<Confirmation>, Status>;
+            async fn list_aggregate_events(&self, request: GetAggregateEventsRequest)
+                -> Result<tonic::Response<Streaming<Event>>, tonic::Status>;
         }
     }
 
@@ -183,6 +193,11 @@ mod tests {
         let mut command_response = CommandResponse::default();
         command_response.payload = Some(payload);
         let tonic_command_response = tonic::Response::new(command_response);
+        let mut cloned_handle = MockAxonServerHandle::new();
+        let boxed_cloned_handle: Box<dyn AxonServerHandleTrait> = Box::new(cloned_handle);
+        axon_server_handle
+            .expect_box_clone()
+            .return_once(move || Box::new(cloned_handle));
         axon_server_handle
             .expect_client_id()
             .return_const("axon-id".to_string());
@@ -200,7 +215,7 @@ mod tests {
         };
         let meta_data = HashMap::default();
 
-        let actual_payload = submit_command(&axon_server_handle, message, meta_data).await?;
+        let actual_payload = submit_command(Box::new(axon_server_handle), message, meta_data).await?;
         let serialized_object = actual_payload.expect("Missing serialized object");
         assert_eq!(&serialized_object.r#type, payload_type);
         Ok(())
