@@ -19,7 +19,7 @@ pub async fn init() -> Result<AxonServerHandle> {
 pub struct SubmitCommand {
     command_type: String,
     command: Option<Box<dyn VecU8Message + Sync + Send>>,
-    metadata: HashMap<::prost::alloc::string::String, MetaDataValue>,
+    metadata: HashMap<String, MetaDataValue>,
 }
 
 impl Default for SubmitCommand {
@@ -66,7 +66,7 @@ impl SubmitCommand {
         );
         self
     }
-    pub fn correlation_id<'a>(&'a mut self, correlation_id: &str) -> &'a mut SubmitCommand {
+    pub fn correlation_id(&mut self, correlation_id: &str) -> &mut SubmitCommand {
         self.text_annotation("dendrite::correlation_id", correlation_id);
         self
     }
