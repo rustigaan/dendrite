@@ -7,9 +7,6 @@ use anyhow::{anyhow, Result};
 use log::debug;
 use std::collections::HashMap;
 use std::vec::Vec;
-use tonic::{
-    transport::{Endpoint, Server, Uri}
-};
 use uuid::Uuid;
 
 /// Polls AxonServer until it is available and ready.
@@ -156,22 +153,53 @@ async fn submit_command(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::axon_server::command::CommandResponse;
+    use crate::axon_server::command::{CommandProviderInbound, CommandProviderOutbound, CommandResponse};
+    use crate::axon_server::command::command_service_server::{CommandService, CommandServiceServer};
     use super::super::AxonServerHandle;
-    use mockall::mock;
+    use futures_core::stream::Stream;
+    use std::pin::Pin;
+    use tonic::{
+        transport::{Endpoint, Server, Uri},
+        Request, Response, Status, Streaming
+    };
+    use tower::service_fn;
+//    use crate::axon_server::command::command_provider_outbound::Request::CommandResponse as ServerCommandResponse;
 
     #[tokio::test]
     async fn test_submit_command() -> Result<()> {
         let (client, server) = tokio::io::duplex(1024);
 
-        let greeter = MyGreeter::default();
+        let api_server = MockCommandServer::default();
 
         tokio::spawn(async move {
             Server::builder()
-                .add_service(GreeterServer::new(greeter))
+                .add_service(CommandServiceServer::new(api_server))
                 .serve_with_incoming(futures::stream::iter(vec![Ok::<_, std::io::Error>(server)]))
                 .await
         });
+
+        #[derive(Default)]
+        struct MockCommandServer {}
+
+        #[tonic::async_trait]
+        impl CommandService for MockCommandServer {
+            type OpenStreamStream =
+            Pin<Box<dyn Stream<Item = Result<CommandProviderInbound, Status>> + Send + Sync + 'static>>;
+
+            async fn open_stream(&self, _request: Request<Streaming<CommandProviderOutbound>>) -> std::result::Result<Response<Self::OpenStreamStream>, Status> {
+                todo!()
+            }
+
+            async fn dispatch(&self, request: Request<Command>) -> std::result::Result<Response<CommandResponse>, Status> {
+                let message_identifier = request.into_inner().message_identifier;
+                let mut ack = CommandResponse::default();
+                ack.message_identifier = message_identifier;
+                let mut payload = SerializedObject::default();
+                payload.r#type = "test-payload".to_string();
+                ack.payload = Some(payload);
+                Ok(Response::new(ack))
+            }
+        }
 
         // Move client to an option so we can _move_ the inner value
         // on the first attempt to connect. All other attempts will fail.
@@ -207,7 +235,7 @@ mod tests {
         };
         let mut command_response = CommandResponse::default();
         command_response.payload = Some(payload);
-        let tonic_command_response = tonic::Response::new(command_response);
+        // let tonic_command_response = tonic::Response::new(command_response);
 
         let message = SerializedObject {
             r#type: "unknown".to_string(),
