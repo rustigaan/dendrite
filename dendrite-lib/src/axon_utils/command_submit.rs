@@ -153,9 +153,9 @@ async fn submit_command(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use super::super::AxonServerHandle;
     use crate::axon_server::command::{CommandProviderInbound, CommandProviderOutbound, CommandResponse};
     use crate::axon_server::command::command_service_server::{CommandService, CommandServiceServer};
-    use super::super::AxonServerHandle;
     use futures_core::stream::Stream;
     use std::pin::Pin;
     use tonic::{
@@ -163,7 +163,6 @@ mod tests {
         Request, Response, Status, Streaming
     };
     use tower::service_fn;
-//    use crate::axon_server::command::command_provider_outbound::Request::CommandResponse as ServerCommandResponse;
 
     #[tokio::test]
     async fn test_submit_command() -> Result<()> {
