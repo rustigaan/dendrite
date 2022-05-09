@@ -1,0 +1,16 @@
+syntax = "proto3";
+package issue;
+
+service IssueService {
+
+  /* Opens a stream allowing clients to register command handlers and receive commands. */
+  rpc OpenStream (stream OutboundItem) returns (Empty) {
+  }
+}
+
+message OutboundItem {
+  string dummy = 1;
+}
+
+message Empty {
+}

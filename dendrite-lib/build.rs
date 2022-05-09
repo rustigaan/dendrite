@@ -11,9 +11,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             "proto/axon_server/control.proto",
             "proto/axon_server/event.proto",
             "proto/axon_server/query.proto",
-            "proto/axon_server/common.proto"
+            "proto/axon_server/common.proto",
+            "proto/issue/outboundstream.proto",
         ],
-        &["proto/axon_server"]
+        &["proto/axon_server", "proto/issue"]
     )?;
     fs::remove_file("src/google.protobuf.rs").ok();
     fs::create_dir_all("src/axon_server").ok();

@@ -14,6 +14,7 @@
 
 use crate::intellij_work_around::Debuggable;
 use anyhow::{anyhow, Result};
+use async_stream::stream;
 use log::debug;
 use prost::Message;
 use std::future::Future;
@@ -51,6 +52,8 @@ pub use event_query::query_events;
 pub use handler_registry::empty_handler_registry;
 pub use handler_registry::{HandleBuilder, HandlerRegistry, TheHandlerRegistry};
 pub use query_processor::{query_processor, QueryContext, QueryResult};
+use crate::issue::issue_service_client::IssueServiceClient;
+use crate::issue::{Empty, OutboundItem};
 
 /// A handle for AxonServer.
 #[derive(Debug, Clone)]
@@ -78,24 +81,59 @@ type AxonServerHandleTraitBox = Box<dyn AxonServerHandleTrait>;
 type StaticCommandProviderOutboundStream = dyn Stream<Item = CommandProviderOutbound> + Send + 'static;
 type CommandProviderOutboundStreamBox = Pin<Box<StaticCommandProviderOutboundStream>>;
 
+type StaticOutboundStream = dyn Stream<Item = OutboundItem> + Send + 'static;
+type OutboundStreamBox = Pin<Box<StaticOutboundStream>>;
+
 struct ServerHandle {
     conn: Channel
 }
 
 #[tonic::async_trait]
 trait ServerHandleTrait {
-    async fn open_command_provider_inbound_stream(&self, request: CommandProviderOutboundStreamBox)
-        -> Result<tonic::Response<Streaming<CommandProviderInbound>>, tonic::Status>;
+    async fn send_outbound_stream(&self, request: OutboundStreamBox)
+        -> Result<tonic::Response<Empty>, tonic::Status>;
 }
 #[tonic::async_trait]
 impl ServerHandleTrait for ServerHandle
 {
-    async fn open_command_provider_inbound_stream(&self, request: CommandProviderOutboundStreamBox)
-        -> Result<tonic::Response<Streaming<CommandProviderInbound>>, tonic::Status>
+    async fn send_outbound_stream(&self, request: OutboundStreamBox)
+        -> Result<tonic::Response<Empty>, tonic::Status>
     {
-        let request = Request::new(request as CommandProviderOutboundStreamBox);
-        let mut client = CommandServiceClient::new(self.conn.clone());
+        let mut client = IssueServiceClient::new(self.conn.clone());
         client.open_stream(request).await
+    }
+}
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use async_stream::stream;
+    use mockall::mock;
+    use crate::axon_utils::ServerHandle;
+
+    mock! {
+        #[derive(Debug)]
+        ServerHandle {}
+        #[tonic::async_trait]
+        impl ServerHandleTrait for ServerHandle
+        {
+            async fn send_outbound_stream(&self, request: OutboundStreamBox)
+                -> Result<tonic::Response<Empty>, tonic::Status>;
+        }
+    }
+
+    #[tokio::test]
+    async fn test_submit_command() {
+        let server_handle = MockServerHandle::new();
+        let outbound_stream = stream! {
+            let outbound_item = OutboundItem {
+                dummy: "Help!".to_string(),
+            };
+            yield outbound_item;
+        };
+
+        server_handle.send_outbound_stream(Box::pin(outbound_stream));
     }
 }
 
