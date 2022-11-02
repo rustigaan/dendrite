@@ -228,8 +228,8 @@ pub struct GetEventsRequest {
     #[prost(string, tag="5")]
     pub processor: ::prost::alloc::string::String,
     /// An enumeration of payload types that need to be blacklisted. The Server will stop sending messages of these
-    ///types in order to reduce I/O. Note that the Server may occasionally send a blacklisted message to prevent
-    ///time-outs and stale tokens on clients.
+    /// types in order to reduce I/O. Note that the Server may occasionally send a blacklisted message to prevent
+    /// time-outs and stale tokens on clients.
     #[prost(message, repeated, tag="6")]
     pub blacklist: ::prost::alloc::vec::Vec<PayloadDescription>,
     /// Indicates whether to force reading events from the leader node of an Axon Server. Forcing reads from leader
@@ -312,6 +312,7 @@ pub struct PayloadDescription {
 pub mod event_store_client {
     #![allow(unused_variables, dead_code, missing_docs, clippy::let_unit_value)]
     use tonic::codegen::*;
+    use tonic::codegen::http::Uri;
     /// Service providing operations against the EventStore functionality of Axon Server
     #[derive(Debug, Clone)]
     pub struct EventStoreClient<T> {
@@ -339,6 +340,10 @@ pub mod event_store_client {
             let inner = tonic::client::Grpc::new(inner);
             Self { inner }
         }
+        pub fn with_origin(inner: T, origin: Uri) -> Self {
+            let inner = tonic::client::Grpc::with_origin(inner, origin);
+            Self { inner }
+        }
         pub fn with_interceptor<F>(
             inner: T,
             interceptor: F,
@@ -358,19 +363,19 @@ pub mod event_store_client {
         {
             EventStoreClient::new(InterceptedService::new(inner, interceptor))
         }
-        /// Compress requests with `gzip`.
+        /// Compress requests with the given encoding.
         ///
         /// This requires the server to support it otherwise it might respond with an
         /// error.
         #[must_use]
-        pub fn send_gzip(mut self) -> Self {
-            self.inner = self.inner.send_gzip();
+        pub fn send_compressed(mut self, encoding: CompressionEncoding) -> Self {
+            self.inner = self.inner.send_compressed(encoding);
             self
         }
-        /// Enable decompressing responses with `gzip`.
+        /// Enable decompressing responses.
         #[must_use]
-        pub fn accept_gzip(mut self) -> Self {
-            self.inner = self.inner.accept_gzip();
+        pub fn accept_compressed(mut self, encoding: CompressionEncoding) -> Self {
+            self.inner = self.inner.accept_compressed(encoding);
             self
         }
         /// Accepts a stream of Events returning a Confirmation when completed.
@@ -420,9 +425,9 @@ pub mod event_store_client {
             &mut self,
             request: impl tonic::IntoRequest<super::GetAggregateEventsRequest>,
         ) -> Result<
-                tonic::Response<tonic::codec::Streaming<super::Event>>,
-                tonic::Status,
-            > {
+            tonic::Response<tonic::codec::Streaming<super::Event>>,
+            tonic::Status,
+        > {
             self.inner
                 .ready()
                 .await
@@ -443,9 +448,9 @@ pub mod event_store_client {
             &mut self,
             request: impl tonic::IntoRequest<super::GetAggregateSnapshotsRequest>,
         ) -> Result<
-                tonic::Response<tonic::codec::Streaming<super::Event>>,
-                tonic::Status,
-            > {
+            tonic::Response<tonic::codec::Streaming<super::Event>>,
+            tonic::Status,
+        > {
             self.inner
                 .ready()
                 .await
@@ -468,9 +473,9 @@ pub mod event_store_client {
             &mut self,
             request: impl tonic::IntoStreamingRequest<Message = super::GetEventsRequest>,
         ) -> Result<
-                tonic::Response<tonic::codec::Streaming<super::EventWithToken>>,
-                tonic::Status,
-            > {
+            tonic::Response<tonic::codec::Streaming<super::EventWithToken>>,
+            tonic::Status,
+        > {
             self.inner
                 .ready()
                 .await
@@ -491,9 +496,9 @@ pub mod event_store_client {
             &mut self,
             request: impl tonic::IntoRequest<super::ReadHighestSequenceNrRequest>,
         ) -> Result<
-                tonic::Response<super::ReadHighestSequenceNrResponse>,
-                tonic::Status,
-            > {
+            tonic::Response<super::ReadHighestSequenceNrResponse>,
+            tonic::Status,
+        > {
             self.inner
                 .ready()
                 .await
@@ -517,9 +522,9 @@ pub mod event_store_client {
                 Message = super::QueryEventsRequest,
             >,
         ) -> Result<
-                tonic::Response<tonic::codec::Streaming<super::QueryEventsResponse>>,
-                tonic::Status,
-            > {
+            tonic::Response<tonic::codec::Streaming<super::QueryEventsResponse>>,
+            tonic::Status,
+        > {
             self.inner
                 .ready()
                 .await
@@ -601,6 +606,7 @@ pub mod event_store_client {
 pub mod event_scheduler_client {
     #![allow(unused_variables, dead_code, missing_docs, clippy::let_unit_value)]
     use tonic::codegen::*;
+    use tonic::codegen::http::Uri;
     /// Service to use AxonServer as a provider of an EventScheduler
     #[derive(Debug, Clone)]
     pub struct EventSchedulerClient<T> {
@@ -628,6 +634,10 @@ pub mod event_scheduler_client {
             let inner = tonic::client::Grpc::new(inner);
             Self { inner }
         }
+        pub fn with_origin(inner: T, origin: Uri) -> Self {
+            let inner = tonic::client::Grpc::with_origin(inner, origin);
+            Self { inner }
+        }
         pub fn with_interceptor<F>(
             inner: T,
             interceptor: F,
@@ -647,19 +657,19 @@ pub mod event_scheduler_client {
         {
             EventSchedulerClient::new(InterceptedService::new(inner, interceptor))
         }
-        /// Compress requests with `gzip`.
+        /// Compress requests with the given encoding.
         ///
         /// This requires the server to support it otherwise it might respond with an
         /// error.
         #[must_use]
-        pub fn send_gzip(mut self) -> Self {
-            self.inner = self.inner.send_gzip();
+        pub fn send_compressed(mut self, encoding: CompressionEncoding) -> Self {
+            self.inner = self.inner.send_compressed(encoding);
             self
         }
-        /// Enable decompressing responses with `gzip`.
+        /// Enable decompressing responses.
         #[must_use]
-        pub fn accept_gzip(mut self) -> Self {
-            self.inner = self.inner.accept_gzip();
+        pub fn accept_compressed(mut self, encoding: CompressionEncoding) -> Self {
+            self.inner = self.inner.accept_compressed(encoding);
             self
         }
         ///  Schedule the given event for publication at the given time}. The returned ScheduleToken can be used to cancel the planned publication.
@@ -707,9 +717,9 @@ pub mod event_scheduler_client {
             &mut self,
             request: impl tonic::IntoRequest<super::CancelScheduledEventRequest>,
         ) -> Result<
-                tonic::Response<super::super::common::InstructionAck>,
-                tonic::Status,
-            > {
+            tonic::Response<super::super::common::InstructionAck>,
+            tonic::Status,
+        > {
             self.inner
                 .ready()
                 .await
@@ -784,9 +794,9 @@ pub mod event_store_server {
             &self,
             request: tonic::Request<super::ReadHighestSequenceNrRequest>,
         ) -> Result<
-                tonic::Response<super::ReadHighestSequenceNrResponse>,
-                tonic::Status,
-            >;
+            tonic::Response<super::ReadHighestSequenceNrResponse>,
+            tonic::Status,
+        >;
         ///Server streaming response type for the QueryEvents method.
         type QueryEventsStream: futures_core::Stream<
                 Item = Result<super::QueryEventsResponse, tonic::Status>,
@@ -819,8 +829,8 @@ pub mod event_store_server {
     #[derive(Debug)]
     pub struct EventStoreServer<T: EventStore> {
         inner: _Inner<T>,
-        accept_compression_encodings: (),
-        send_compression_encodings: (),
+        accept_compression_encodings: EnabledCompressionEncodings,
+        send_compression_encodings: EnabledCompressionEncodings,
     }
     struct _Inner<T>(Arc<T>);
     impl<T: EventStore> EventStoreServer<T> {
@@ -843,6 +853,18 @@ pub mod event_store_server {
             F: tonic::service::Interceptor,
         {
             InterceptedService::new(Self::new(inner), interceptor)
+        }
+        /// Enable decompressing requests with the given encoding.
+        #[must_use]
+        pub fn accept_compressed(mut self, encoding: CompressionEncoding) -> Self {
+            self.accept_compression_encodings.enable(encoding);
+            self
+        }
+        /// Compress responses with the given encoding, if the client supports it.
+        #[must_use]
+        pub fn send_compressed(mut self, encoding: CompressionEncoding) -> Self {
+            self.send_compression_encodings.enable(encoding);
+            self
         }
     }
     impl<T, B> tonic::codegen::Service<http::Request<B>> for EventStoreServer<T>
@@ -1304,7 +1326,7 @@ pub mod event_store_server {
             write!(f, "{:?}", self.0)
         }
     }
-    impl<T: EventStore> tonic::transport::NamedService for EventStoreServer<T> {
+    impl<T: EventStore> tonic::server::NamedService for EventStoreServer<T> {
         const NAME: &'static str = "io.axoniq.axonserver.grpc.event.EventStore";
     }
 }
@@ -1330,16 +1352,16 @@ pub mod event_scheduler_server {
             &self,
             request: tonic::Request<super::CancelScheduledEventRequest>,
         ) -> Result<
-                tonic::Response<super::super::common::InstructionAck>,
-                tonic::Status,
-            >;
+            tonic::Response<super::super::common::InstructionAck>,
+            tonic::Status,
+        >;
     }
     /// Service to use AxonServer as a provider of an EventScheduler
     #[derive(Debug)]
     pub struct EventSchedulerServer<T: EventScheduler> {
         inner: _Inner<T>,
-        accept_compression_encodings: (),
-        send_compression_encodings: (),
+        accept_compression_encodings: EnabledCompressionEncodings,
+        send_compression_encodings: EnabledCompressionEncodings,
     }
     struct _Inner<T>(Arc<T>);
     impl<T: EventScheduler> EventSchedulerServer<T> {
@@ -1362,6 +1384,18 @@ pub mod event_scheduler_server {
             F: tonic::service::Interceptor,
         {
             InterceptedService::new(Self::new(inner), interceptor)
+        }
+        /// Enable decompressing requests with the given encoding.
+        #[must_use]
+        pub fn accept_compressed(mut self, encoding: CompressionEncoding) -> Self {
+            self.accept_compression_encodings.enable(encoding);
+            self
+        }
+        /// Compress responses with the given encoding, if the client supports it.
+        #[must_use]
+        pub fn send_compressed(mut self, encoding: CompressionEncoding) -> Self {
+            self.send_compression_encodings.enable(encoding);
+            self
         }
     }
     impl<T, B> tonic::codegen::Service<http::Request<B>> for EventSchedulerServer<T>
@@ -1537,7 +1571,7 @@ pub mod event_scheduler_server {
             write!(f, "{:?}", self.0)
         }
     }
-    impl<T: EventScheduler> tonic::transport::NamedService for EventSchedulerServer<T> {
+    impl<T: EventScheduler> tonic::server::NamedService for EventSchedulerServer<T> {
         const NAME: &'static str = "io.axoniq.axonserver.grpc.event.EventScheduler";
     }
 }

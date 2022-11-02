@@ -15,16 +15,15 @@ use jwt::algorithm::AlgorithmType::Rs256;
 use jwt::token::Unverified;
 use lazy_static::lazy_static;
 use log::{debug,error,warn};
-use pem;
 use prost::Message;
-use rsa::{RSAPrivateKey, PublicKey, PaddingScheme};
-use rsa::hash::Hash::SHA2_256;
+use rsa::{RsaPrivateKey, PublicKey, PaddingScheme};
 use serde_json::Value;
-use sha2::{Digest,Sha256};
+use sha2::{Digest, Sha256};
 use sha2::digest::FixedOutput;
 use sshkeys;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
+use rsa::pkcs8::PrivateKeyInfo;
 use tonic;
 use crate::dendrite_config::{CredentialsAddedEvent, CredentialsRemovedEvent, KeyManagerAddedEvent, KeyManagerRemovedEvent, TrustedKeyAddedEvent, TrustedKeyRemovedEvent};
 
@@ -34,7 +33,7 @@ struct AuthSettings {
     key_managers: HashMap<String,String>,
     trusted_keys: HashMap<String,String>,
     credentials: HashMap<String,String>,
-    private_key: Option<RSAPrivateKey>,
+    private_key: Option<RsaPrivateKey>,
     private_key_name: String,
 }
 
@@ -128,8 +127,8 @@ async fn handle_credentials_removed_event(command: CredentialsRemovedEvent, _que
 }
 
 pub fn set_private_key(key_name: String, pem_string: String) -> Result<()> {
-    let pem = pem::parse(pem_string)?;
-    let private_key = RSAPrivateKey::try_from(pem)?;
+    let private_key_info = PrivateKeyInfo::try_from(pem_string.as_bytes())?;
+    let private_key = RsaPrivateKey::try_from(private_key_info)?;
     // TODO: verify that the private key matches the public key with the same name
     let mut auth_settings = AUTH.auth_settings.lock().map_err(|e| anyhow!(e.to_string()))?;
     auth_settings.private_key_name = key_name;
@@ -173,7 +172,7 @@ fn remove_credentials(identifier: &str) -> Result<()> {
     Ok(())
 }
 
-struct AuthPublicKey(rsa::RSAPublicKey);
+struct AuthPublicKey(rsa::RsaPublicKey);
 
 impl jwt::VerifyingAlgorithm for AuthPublicKey {
     fn algorithm_type(&self) -> AlgorithmType {
@@ -187,7 +186,8 @@ impl jwt::VerifyingAlgorithm for AuthPublicKey {
         sha2::Digest::update(&mut hasher, claims.as_bytes());
         let hashed: &[u8] = &hasher.finalize_fixed();
         debug!("Verify signature: {:?}: {:?}", signature, hashed);
-        self.0.verify(PaddingScheme::PKCS1v15Sign {hash:Some(SHA2_256)}, hashed, signature)
+        let padding = PaddingScheme::new_pkcs1v15_sign::<Sha256>();
+        self.0.verify(padding, hashed, signature)
             .map_err(|e| {
                 warn!("Error during verification of JWT: {:?}", e);
                 Error::InvalidSignature
@@ -210,7 +210,7 @@ pub fn verify_jwt(jwt: &str) -> Result<HashMap<String,Value>> {
             if let sshkeys::PublicKey{kind: sshkeys::PublicKeyKind::Rsa(sshkeys::RsaPublicKey {n, e}), ..} = public_key {
                 let n = rsa::BigUint::from_bytes_be(&n);
                 let e = rsa::BigUint::from_bytes_be(&e);
-                let public_key = rsa::RSAPublicKey::new(n, e)?;
+                let public_key = rsa::RsaPublicKey::new(n, e)?;
                 debug!("RSH public key: {:?}", public_key);
                 let verified = unverified.verify_with_key(&AuthPublicKey(public_key))?;
                 return Ok(verified.claims().clone());

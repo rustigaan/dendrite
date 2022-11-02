@@ -13,6 +13,7 @@ use crate::axon_server::{ErrorMessage, FlowControl, SerializedObject};
 use crate::intellij_work_around::Debuggable;
 use anyhow::{anyhow, Result};
 use async_stream::stream;
+use core::convert::TryFrom;
 use futures_core::stream::Stream;
 use log::{debug, error, warn};
 use lru::LruCache;
@@ -267,7 +268,7 @@ pub trait AggregateHandle: Send + Sync {
 }
 
 #[tonic::async_trait]
-impl<P: VecU8Message + Send + Sync + Clone + std::fmt::Debug + 'static> AggregateHandle
+impl<P: VecU8Message + Send + Sync + Clone + Debug + 'static> AggregateHandle
     for Arc<AggregateDefinition<P>>
 {
     fn name(&self) -> String {
@@ -331,7 +332,7 @@ pub fn create_aggregate_definition<P: VecU8Message + Send + Sync + Clone>(
     >,
     sourcing_handler_registry: TheHandlerRegistry<P, Event, P>,
 ) -> AggregateDefinition<P> {
-    let cache = Arc::new(Mutex::new(LruCache::new(1024)));
+    let cache = Arc::new(Mutex::new(LruCache::new(TryFrom::try_from(1024_usize).unwrap())));
     let empty_projection = ProjectionFactory {
         factory: empty_projection,
     };
@@ -344,7 +345,7 @@ pub fn create_aggregate_definition<P: VecU8Message + Send + Sync + Clone>(
     }
 }
 
-async fn handle_command<P: VecU8Message + Send + Sync + Clone + std::fmt::Debug + 'static>(
+async fn handle_command<P: VecU8Message + Send + Sync + Clone + Debug + 'static>(
     command: &Command,
     aggregate_definition: Arc<AggregateDefinition<P>>,
     client: &mut EventStoreClient<Channel>,
@@ -395,7 +396,7 @@ async fn handle_command<P: VecU8Message + Send + Sync + Clone + std::fmt::Debug 
 }
 
 async fn internal_handle_command<
-    P: VecU8Message + Send + Sync + Clone + std::fmt::Debug + 'static,
+    P: VecU8Message + Send + Sync + Clone + Debug + 'static,
 >(
     command_handler: &dyn SubscriptionHandle<
         Arc<async_lock::Mutex<AggregateContext<P>>>,
@@ -513,7 +514,7 @@ fn clone_events<P>(
 
 type AggArc<P> = Arc<async_lock::Mutex<AggregateContext<P>>>;
 
-fn get_command_handler<'a, P: VecU8Message + Send + Sync + Clone + std::fmt::Debug + 'static>(
+fn get_command_handler<'a, P: VecU8Message + Send + Sync + Clone + Debug + 'static>(
     command_name: &str,
     aggregate_definition: &'a Arc<AggregateDefinition<P>>,
 ) -> Option<&'a dyn SubscriptionHandle<AggArc<P>, Command, SerializedObject>> {
@@ -711,7 +712,7 @@ fn create_output_stream(
     }
 }
 
-async fn store_events<P: std::fmt::Debug>(
+async fn store_events<P: Debug>(
     client: &mut EventStoreClient<Channel>,
     aggregate_name: &str,
     aggregate_id: &str,

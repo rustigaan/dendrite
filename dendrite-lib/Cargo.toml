@@ -21,15 +21,15 @@ futures = "^0.3"
 futures-core = "^0.3"
 futures-util = "^0.3"
 log = "^0.4"
-lru = "^0.6"
+lru = "^0.8"
 mockall = "^0.11"
-prost = "^0.10"
+prost = "^0.11"
 regex = "^1.5"
 serde = { version = "~1", features = ["derive"] }
 tokio = { version = "^1.0", features = ["macros","time"] }
-tonic = "^0.7"
+tonic = "^0.8"
 tower = "^0.4"
-uuid = { version = "^0.8.2", features = ["v4"] }
+uuid = { version = "^1.2", features = ["v4"] }
 
 [build-dependencies]
-tonic-build = "^0.7"
+tonic-build = "^0.8"

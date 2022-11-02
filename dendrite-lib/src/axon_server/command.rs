@@ -117,7 +117,7 @@ pub struct CommandResponse {
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct CommandSubscription {
     /// A unique identifier for this subscription. This identifier is returned in Acknowledgements to allow
-    ///pipelining of subscription messages 
+    /// pipelining of subscription messages 
     #[prost(string, tag="1")]
     pub message_id: ::prost::alloc::string::String,
     /// The name of the command the component can handle 
@@ -130,8 +130,8 @@ pub struct CommandSubscription {
     #[prost(string, tag="4")]
     pub client_id: ::prost::alloc::string::String,
     /// A number that represents the client's relative load capacity compared to other clients.
-    ///This information is interpreted by Axon Server in relation to the other connected nodes' values.
-    ///Used to balance the dispatching of commands. If set to 0, Axon Server consider 100 as default value.
+    /// This information is interpreted by Axon Server in relation to the other connected nodes' values.
+    /// Used to balance the dispatching of commands. If set to 0, Axon Server consider 100 as default value.
     #[prost(int32, tag="5")]
     pub load_factor: i32,
 }
@@ -139,6 +139,7 @@ pub struct CommandSubscription {
 pub mod command_service_client {
     #![allow(unused_variables, dead_code, missing_docs, clippy::let_unit_value)]
     use tonic::codegen::*;
+    use tonic::codegen::http::Uri;
     /// The CommandService defines the gRPC requests necessary for subscribing command handlers, and dispatching commands.
     #[derive(Debug, Clone)]
     pub struct CommandServiceClient<T> {
@@ -166,6 +167,10 @@ pub mod command_service_client {
             let inner = tonic::client::Grpc::new(inner);
             Self { inner }
         }
+        pub fn with_origin(inner: T, origin: Uri) -> Self {
+            let inner = tonic::client::Grpc::with_origin(inner, origin);
+            Self { inner }
+        }
         pub fn with_interceptor<F>(
             inner: T,
             interceptor: F,
@@ -185,19 +190,19 @@ pub mod command_service_client {
         {
             CommandServiceClient::new(InterceptedService::new(inner, interceptor))
         }
-        /// Compress requests with `gzip`.
+        /// Compress requests with the given encoding.
         ///
         /// This requires the server to support it otherwise it might respond with an
         /// error.
         #[must_use]
-        pub fn send_gzip(mut self) -> Self {
-            self.inner = self.inner.send_gzip();
+        pub fn send_compressed(mut self, encoding: CompressionEncoding) -> Self {
+            self.inner = self.inner.send_compressed(encoding);
             self
         }
-        /// Enable decompressing responses with `gzip`.
+        /// Enable decompressing responses.
         #[must_use]
-        pub fn accept_gzip(mut self) -> Self {
-            self.inner = self.inner.accept_gzip();
+        pub fn accept_compressed(mut self, encoding: CompressionEncoding) -> Self {
+            self.inner = self.inner.accept_compressed(encoding);
             self
         }
         /// Opens a stream allowing clients to register command handlers and receive commands.
@@ -207,9 +212,9 @@ pub mod command_service_client {
                 Message = super::CommandProviderOutbound,
             >,
         ) -> Result<
-                tonic::Response<tonic::codec::Streaming<super::CommandProviderInbound>>,
-                tonic::Status,
-            > {
+            tonic::Response<tonic::codec::Streaming<super::CommandProviderInbound>>,
+            tonic::Status,
+        > {
             self.inner
                 .ready()
                 .await
@@ -275,8 +280,8 @@ pub mod command_service_server {
     #[derive(Debug)]
     pub struct CommandServiceServer<T: CommandService> {
         inner: _Inner<T>,
-        accept_compression_encodings: (),
-        send_compression_encodings: (),
+        accept_compression_encodings: EnabledCompressionEncodings,
+        send_compression_encodings: EnabledCompressionEncodings,
     }
     struct _Inner<T>(Arc<T>);
     impl<T: CommandService> CommandServiceServer<T> {
@@ -299,6 +304,18 @@ pub mod command_service_server {
             F: tonic::service::Interceptor,
         {
             InterceptedService::new(Self::new(inner), interceptor)
+        }
+        /// Enable decompressing requests with the given encoding.
+        #[must_use]
+        pub fn accept_compressed(mut self, encoding: CompressionEncoding) -> Self {
+            self.accept_compression_encodings.enable(encoding);
+            self
+        }
+        /// Compress responses with the given encoding, if the client supports it.
+        #[must_use]
+        pub fn send_compressed(mut self, encoding: CompressionEncoding) -> Self {
+            self.send_compression_encodings.enable(encoding);
+            self
         }
     }
     impl<T, B> tonic::codegen::Service<http::Request<B>> for CommandServiceServer<T>
@@ -431,7 +448,7 @@ pub mod command_service_server {
             write!(f, "{:?}", self.0)
         }
     }
-    impl<T: CommandService> tonic::transport::NamedService for CommandServiceServer<T> {
+    impl<T: CommandService> tonic::server::NamedService for CommandServiceServer<T> {
         const NAME: &'static str = "io.axoniq.axonserver.grpc.command.CommandService";
     }
 }

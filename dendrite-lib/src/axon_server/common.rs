@@ -124,6 +124,20 @@ pub enum ProcessingKey {
     /// key indicating that the requester expects at most the given number of results from this message. Use -1 for unlimited. 
     NrOfResults = 3,
 }
+impl ProcessingKey {
+    /// String value of the enum field names used in the ProtoBuf definition.
+    ///
+    /// The values are not transformed in any way and thus are considered stable
+    /// (if the ProtoBuf definition does not change) and safe for programmatic use.
+    pub fn as_str_name(&self) -> &'static str {
+        match self {
+            ProcessingKey::RoutingKey => "ROUTING_KEY",
+            ProcessingKey::Priority => "PRIORITY",
+            ProcessingKey::Timeout => "TIMEOUT",
+            ProcessingKey::NrOfResults => "NR_OF_RESULTS",
+        }
+    }
+}
 /// Defines status values for a scheduled task 
 #[derive(serde::Serialize, serde::Deserialize)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
@@ -139,4 +153,19 @@ pub enum TaskStatus {
     Running = 3,
     /// Task execution is in progress
     Cancelled = 4,
+}
+impl TaskStatus {
+    /// String value of the enum field names used in the ProtoBuf definition.
+    ///
+    /// The values are not transformed in any way and thus are considered stable
+    /// (if the ProtoBuf definition does not change) and safe for programmatic use.
+    pub fn as_str_name(&self) -> &'static str {
+        match self {
+            TaskStatus::Scheduled => "SCHEDULED",
+            TaskStatus::Completed => "COMPLETED",
+            TaskStatus::Failed => "FAILED",
+            TaskStatus::Running => "RUNNING",
+            TaskStatus::Cancelled => "CANCELLED",
+        }
+    }
 }

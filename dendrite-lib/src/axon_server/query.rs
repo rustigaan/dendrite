@@ -211,16 +211,16 @@ pub struct QueryUpdateCompleteExceptionally {
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct SubscriptionQueryRequest {
     /// The actual request. The Subscription Query is opened using a `subscribe`, which opens the flow of updates. Once
-    ///successful, the `get_initial_result` retrieves the initial result of the subscription. For the server to send
-    ///more updates than the initial number of permits, use the `flow_control` request to send more permits.
+    /// successful, the `get_initial_result` retrieves the initial result of the subscription. For the server to send
+    /// more updates than the initial number of permits, use the `flow_control` request to send more permits.
     #[prost(oneof="subscription_query_request::Request", tags="1, 2, 3, 4")]
     pub request: ::core::option::Option<subscription_query_request::Request>,
 }
 /// Nested message and enum types in `SubscriptionQueryRequest`.
 pub mod subscription_query_request {
     /// The actual request. The Subscription Query is opened using a `subscribe`, which opens the flow of updates. Once
-    ///successful, the `get_initial_result` retrieves the initial result of the subscription. For the server to send
-    ///more updates than the initial number of permits, use the `flow_control` request to send more permits.
+    /// successful, the `get_initial_result` retrieves the initial result of the subscription. For the server to send
+    /// more updates than the initial number of permits, use the `flow_control` request to send more permits.
     #[derive(serde::Serialize, serde::Deserialize)]
     #[derive(Clone, PartialEq, ::prost::Oneof)]
     pub enum Request {
@@ -231,11 +231,11 @@ pub mod subscription_query_request {
         #[prost(message, tag="2")]
         Unsubscribe(super::SubscriptionQuery),
         /// Requests the initial result of a subscription query to be sent. This should always be done after opening the
-        ///subscription query itself, to remove concurrency conflicts with Update messages.
+        /// subscription query itself, to remove concurrency conflicts with Update messages.
         #[prost(message, tag="3")]
         GetInitialResult(super::SubscriptionQuery),
         /// Allows the Server to provide additional Updates to be sent. Only the `number_of_permits` field needs to be
-        ///set on this message.
+        /// set on this message.
         #[prost(message, tag="4")]
         FlowControl(super::SubscriptionQuery),
     }
@@ -251,18 +251,18 @@ pub struct SubscriptionQueryResponse {
     #[prost(string, tag="2")]
     pub subscription_identifier: ::prost::alloc::string::String,
     /// The actual response. The `initial_result` message is sent as a response to `get_initial_result`. An `update`
-    ///messages is sent for each update available for the query, even before the Initial Result is supplied. The
-    ///`complete` or `complete_exceptionally` are sent when the publishing side completed the Subscription Query,
-    ///either regularly (`complete`) or because an error occurred (`complete_exceptionally`).
+    /// messages is sent for each update available for the query, even before the Initial Result is supplied. The
+    /// `complete` or `complete_exceptionally` are sent when the publishing side completed the Subscription Query,
+    /// either regularly (`complete`) or because an error occurred (`complete_exceptionally`).
     #[prost(oneof="subscription_query_response::Response", tags="3, 4, 5, 6")]
     pub response: ::core::option::Option<subscription_query_response::Response>,
 }
 /// Nested message and enum types in `SubscriptionQueryResponse`.
 pub mod subscription_query_response {
     /// The actual response. The `initial_result` message is sent as a response to `get_initial_result`. An `update`
-    ///messages is sent for each update available for the query, even before the Initial Result is supplied. The
-    ///`complete` or `complete_exceptionally` are sent when the publishing side completed the Subscription Query,
-    ///either regularly (`complete`) or because an error occurred (`complete_exceptionally`).
+    /// messages is sent for each update available for the query, even before the Initial Result is supplied. The
+    /// `complete` or `complete_exceptionally` are sent when the publishing side completed the Subscription Query,
+    /// either regularly (`complete`) or because an error occurred (`complete_exceptionally`).
     #[derive(serde::Serialize, serde::Deserialize)]
     #[derive(Clone, PartialEq, ::prost::Oneof)]
     pub enum Response {
@@ -304,6 +304,7 @@ pub struct QuerySubscription {
 pub mod query_service_client {
     #![allow(unused_variables, dead_code, missing_docs, clippy::let_unit_value)]
     use tonic::codegen::*;
+    use tonic::codegen::http::Uri;
     /// Service providing operations for the Query Messaging component of AxonServer
     #[derive(Debug, Clone)]
     pub struct QueryServiceClient<T> {
@@ -331,6 +332,10 @@ pub mod query_service_client {
             let inner = tonic::client::Grpc::new(inner);
             Self { inner }
         }
+        pub fn with_origin(inner: T, origin: Uri) -> Self {
+            let inner = tonic::client::Grpc::with_origin(inner, origin);
+            Self { inner }
+        }
         pub fn with_interceptor<F>(
             inner: T,
             interceptor: F,
@@ -350,19 +355,19 @@ pub mod query_service_client {
         {
             QueryServiceClient::new(InterceptedService::new(inner, interceptor))
         }
-        /// Compress requests with `gzip`.
+        /// Compress requests with the given encoding.
         ///
         /// This requires the server to support it otherwise it might respond with an
         /// error.
         #[must_use]
-        pub fn send_gzip(mut self) -> Self {
-            self.inner = self.inner.send_gzip();
+        pub fn send_compressed(mut self, encoding: CompressionEncoding) -> Self {
+            self.inner = self.inner.send_compressed(encoding);
             self
         }
-        /// Enable decompressing responses with `gzip`.
+        /// Enable decompressing responses.
         #[must_use]
-        pub fn accept_gzip(mut self) -> Self {
-            self.inner = self.inner.accept_gzip();
+        pub fn accept_compressed(mut self, encoding: CompressionEncoding) -> Self {
+            self.inner = self.inner.accept_compressed(encoding);
             self
         }
         /// Opens a Query- and Instruction stream to AxonServer.
@@ -372,9 +377,9 @@ pub mod query_service_client {
                 Message = super::QueryProviderOutbound,
             >,
         ) -> Result<
-                tonic::Response<tonic::codec::Streaming<super::QueryProviderInbound>>,
-                tonic::Status,
-            > {
+            tonic::Response<tonic::codec::Streaming<super::QueryProviderInbound>>,
+            tonic::Status,
+        > {
             self.inner
                 .ready()
                 .await
@@ -395,9 +400,9 @@ pub mod query_service_client {
             &mut self,
             request: impl tonic::IntoRequest<super::QueryRequest>,
         ) -> Result<
-                tonic::Response<tonic::codec::Streaming<super::QueryResponse>>,
-                tonic::Status,
-            > {
+            tonic::Response<tonic::codec::Streaming<super::QueryResponse>>,
+            tonic::Status,
+        > {
             self.inner
                 .ready()
                 .await
@@ -420,11 +425,9 @@ pub mod query_service_client {
                 Message = super::SubscriptionQueryRequest,
             >,
         ) -> Result<
-                tonic::Response<
-                    tonic::codec::Streaming<super::SubscriptionQueryResponse>,
-                >,
-                tonic::Status,
-            > {
+            tonic::Response<tonic::codec::Streaming<super::SubscriptionQueryResponse>>,
+            tonic::Status,
+        > {
             self.inner
                 .ready()
                 .await
@@ -487,8 +490,8 @@ pub mod query_service_server {
     #[derive(Debug)]
     pub struct QueryServiceServer<T: QueryService> {
         inner: _Inner<T>,
-        accept_compression_encodings: (),
-        send_compression_encodings: (),
+        accept_compression_encodings: EnabledCompressionEncodings,
+        send_compression_encodings: EnabledCompressionEncodings,
     }
     struct _Inner<T>(Arc<T>);
     impl<T: QueryService> QueryServiceServer<T> {
@@ -511,6 +514,18 @@ pub mod query_service_server {
             F: tonic::service::Interceptor,
         {
             InterceptedService::new(Self::new(inner), interceptor)
+        }
+        /// Enable decompressing requests with the given encoding.
+        #[must_use]
+        pub fn accept_compressed(mut self, encoding: CompressionEncoding) -> Self {
+            self.accept_compression_encodings.enable(encoding);
+            self
+        }
+        /// Compress responses with the given encoding, if the client supports it.
+        #[must_use]
+        pub fn send_compressed(mut self, encoding: CompressionEncoding) -> Self {
+            self.send_compression_encodings.enable(encoding);
+            self
         }
     }
     impl<T, B> tonic::codegen::Service<http::Request<B>> for QueryServiceServer<T>
@@ -689,7 +704,7 @@ pub mod query_service_server {
             write!(f, "{:?}", self.0)
         }
     }
-    impl<T: QueryService> tonic::transport::NamedService for QueryServiceServer<T> {
+    impl<T: QueryService> tonic::server::NamedService for QueryServiceServer<T> {
         const NAME: &'static str = "io.axoniq.axonserver.grpc.query.QueryService";
     }
 }

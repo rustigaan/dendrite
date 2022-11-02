@@ -16,11 +16,11 @@ pub mod platform_inbound_instruction {
     #[derive(Clone, PartialEq, ::prost::Oneof)]
     pub enum Request {
         /// Information about the client being connected.
-        ///This information is used by AxonServer to monitor the topology of connected applications.
+        /// This information is used by AxonServer to monitor the topology of connected applications.
         #[prost(message, tag="1")]
         Register(super::ClientIdentification),
         /// Information about Tracking Processors defined in the application.
-        ///This information is used by AxonServer to monitor the progress of Tracking Processors across instances.
+        /// This information is used by AxonServer to monitor the progress of Tracking Processors across instances.
         #[prost(message, tag="2")]
         EventProcessorInfo(super::EventProcessorInfo),
         /// This heartbeat is used by AxonServer in order to check if the connection is still alive
@@ -55,8 +55,8 @@ pub mod platform_outbound_instruction {
         #[prost(message, tag="1")]
         NodeNotification(super::NodeInfo),
         /// A request from AxonServer to the Application to migrate its connection to another node.
-        ///Clients SHOULD honor this request by closing their current connection, and using the GetPlatformServer RPC
-        ///to request a new destination.
+        /// Clients SHOULD honor this request by closing their current connection, and using the GetPlatformServer RPC
+        /// to request a new destination.
         #[prost(message, tag="3")]
         RequestReconnect(super::RequestReconnect),
         /// Instruction from AxonServer to Pause a Tracking Event Processor. 
@@ -98,7 +98,7 @@ pub struct PlatformInfo {
     #[prost(message, optional, tag="1")]
     pub primary: ::core::option::Option<NodeInfo>,
     /// Flag indicating that the connection may be reused to connect. When true, the client _may_ reuse the connection
-    ///established for the GetPlatformServer request for subsequent requests.
+    /// established for the GetPlatformServer request for subsequent requests.
     #[prost(bool, tag="2")]
     pub same_connection: bool,
 }
@@ -159,11 +159,11 @@ pub struct EventProcessorInfo {
     #[prost(bool, tag="5")]
     pub error: bool,
     /// Status details of each of the Segments for which Events are being processed. This is only provided by Tracking
-    ///Event Processors.
+    /// Event Processors.
     #[prost(message, repeated, tag="6")]
     pub segment_status: ::prost::alloc::vec::Vec<event_processor_info::SegmentStatus>,
     /// The number of threads the processor has available to assign to Segments.
-    ///Will report 0 if all threads are assigned a Segment.
+    /// Will report 0 if all threads are assigned a Segment.
     #[prost(int32, tag="7")]
     pub available_threads: i32,
     /// The Token Store Identifier if available. This is only provided by Tracking Event Processors.
@@ -223,6 +223,7 @@ pub struct Heartbeat {
 pub mod platform_service_client {
     #![allow(unused_variables, dead_code, missing_docs, clippy::let_unit_value)]
     use tonic::codegen::*;
+    use tonic::codegen::http::Uri;
     /// Service describing operations for connecting to the AxonServer platform.
     ///
     ///Clients are expected to use this service on any of the Platform's Admin nodes to obtain connection information of the
@@ -254,6 +255,10 @@ pub mod platform_service_client {
             let inner = tonic::client::Grpc::new(inner);
             Self { inner }
         }
+        pub fn with_origin(inner: T, origin: Uri) -> Self {
+            let inner = tonic::client::Grpc::with_origin(inner, origin);
+            Self { inner }
+        }
         pub fn with_interceptor<F>(
             inner: T,
             interceptor: F,
@@ -273,19 +278,19 @@ pub mod platform_service_client {
         {
             PlatformServiceClient::new(InterceptedService::new(inner, interceptor))
         }
-        /// Compress requests with `gzip`.
+        /// Compress requests with the given encoding.
         ///
         /// This requires the server to support it otherwise it might respond with an
         /// error.
         #[must_use]
-        pub fn send_gzip(mut self) -> Self {
-            self.inner = self.inner.send_gzip();
+        pub fn send_compressed(mut self, encoding: CompressionEncoding) -> Self {
+            self.inner = self.inner.send_compressed(encoding);
             self
         }
-        /// Enable decompressing responses with `gzip`.
+        /// Enable decompressing responses.
         #[must_use]
-        pub fn accept_gzip(mut self) -> Self {
-            self.inner = self.inner.accept_gzip();
+        pub fn accept_compressed(mut self, encoding: CompressionEncoding) -> Self {
+            self.inner = self.inner.accept_compressed(encoding);
             self
         }
         /// Obtains connection information for the Server that a Client should use for its connections.
@@ -315,11 +320,9 @@ pub mod platform_service_client {
                 Message = super::PlatformInboundInstruction,
             >,
         ) -> Result<
-                tonic::Response<
-                    tonic::codec::Streaming<super::PlatformOutboundInstruction>,
-                >,
-                tonic::Status,
-            > {
+            tonic::Response<tonic::codec::Streaming<super::PlatformOutboundInstruction>>,
+            tonic::Status,
+        > {
             self.inner
                 .ready()
                 .await
@@ -369,8 +372,8 @@ pub mod platform_service_server {
     #[derive(Debug)]
     pub struct PlatformServiceServer<T: PlatformService> {
         inner: _Inner<T>,
-        accept_compression_encodings: (),
-        send_compression_encodings: (),
+        accept_compression_encodings: EnabledCompressionEncodings,
+        send_compression_encodings: EnabledCompressionEncodings,
     }
     struct _Inner<T>(Arc<T>);
     impl<T: PlatformService> PlatformServiceServer<T> {
@@ -393,6 +396,18 @@ pub mod platform_service_server {
             F: tonic::service::Interceptor,
         {
             InterceptedService::new(Self::new(inner), interceptor)
+        }
+        /// Enable decompressing requests with the given encoding.
+        #[must_use]
+        pub fn accept_compressed(mut self, encoding: CompressionEncoding) -> Self {
+            self.accept_compression_encodings.enable(encoding);
+            self
+        }
+        /// Compress responses with the given encoding, if the client supports it.
+        #[must_use]
+        pub fn send_compressed(mut self, encoding: CompressionEncoding) -> Self {
+            self.send_compression_encodings.enable(encoding);
+            self
         }
     }
     impl<T, B> tonic::codegen::Service<http::Request<B>> for PlatformServiceServer<T>
@@ -529,8 +544,7 @@ pub mod platform_service_server {
             write!(f, "{:?}", self.0)
         }
     }
-    impl<T: PlatformService> tonic::transport::NamedService
-    for PlatformServiceServer<T> {
+    impl<T: PlatformService> tonic::server::NamedService for PlatformServiceServer<T> {
         const NAME: &'static str = "io.axoniq.axonserver.grpc.control.PlatformService";
     }
 }
