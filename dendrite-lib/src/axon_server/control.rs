@@ -320,9 +320,11 @@ pub mod platform_service_client {
                 Message = super::PlatformInboundInstruction,
             >,
         ) -> Result<
-            tonic::Response<tonic::codec::Streaming<super::PlatformOutboundInstruction>>,
-            tonic::Status,
-        > {
+                tonic::Response<
+                    tonic::codec::Streaming<super::PlatformOutboundInstruction>,
+                >,
+                tonic::Status,
+            > {
             self.inner
                 .ready()
                 .await

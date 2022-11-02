@@ -212,9 +212,9 @@ pub mod command_service_client {
                 Message = super::CommandProviderOutbound,
             >,
         ) -> Result<
-            tonic::Response<tonic::codec::Streaming<super::CommandProviderInbound>>,
-            tonic::Status,
-        > {
+                tonic::Response<tonic::codec::Streaming<super::CommandProviderInbound>>,
+                tonic::Status,
+            > {
             self.inner
                 .ready()
                 .await

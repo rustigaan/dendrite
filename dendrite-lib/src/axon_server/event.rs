@@ -425,9 +425,9 @@ pub mod event_store_client {
             &mut self,
             request: impl tonic::IntoRequest<super::GetAggregateEventsRequest>,
         ) -> Result<
-            tonic::Response<tonic::codec::Streaming<super::Event>>,
-            tonic::Status,
-        > {
+                tonic::Response<tonic::codec::Streaming<super::Event>>,
+                tonic::Status,
+            > {
             self.inner
                 .ready()
                 .await
@@ -448,9 +448,9 @@ pub mod event_store_client {
             &mut self,
             request: impl tonic::IntoRequest<super::GetAggregateSnapshotsRequest>,
         ) -> Result<
-            tonic::Response<tonic::codec::Streaming<super::Event>>,
-            tonic::Status,
-        > {
+                tonic::Response<tonic::codec::Streaming<super::Event>>,
+                tonic::Status,
+            > {
             self.inner
                 .ready()
                 .await
@@ -473,9 +473,9 @@ pub mod event_store_client {
             &mut self,
             request: impl tonic::IntoStreamingRequest<Message = super::GetEventsRequest>,
         ) -> Result<
-            tonic::Response<tonic::codec::Streaming<super::EventWithToken>>,
-            tonic::Status,
-        > {
+                tonic::Response<tonic::codec::Streaming<super::EventWithToken>>,
+                tonic::Status,
+            > {
             self.inner
                 .ready()
                 .await
@@ -496,9 +496,9 @@ pub mod event_store_client {
             &mut self,
             request: impl tonic::IntoRequest<super::ReadHighestSequenceNrRequest>,
         ) -> Result<
-            tonic::Response<super::ReadHighestSequenceNrResponse>,
-            tonic::Status,
-        > {
+                tonic::Response<super::ReadHighestSequenceNrResponse>,
+                tonic::Status,
+            > {
             self.inner
                 .ready()
                 .await
@@ -522,9 +522,9 @@ pub mod event_store_client {
                 Message = super::QueryEventsRequest,
             >,
         ) -> Result<
-            tonic::Response<tonic::codec::Streaming<super::QueryEventsResponse>>,
-            tonic::Status,
-        > {
+                tonic::Response<tonic::codec::Streaming<super::QueryEventsResponse>>,
+                tonic::Status,
+            > {
             self.inner
                 .ready()
                 .await
@@ -717,9 +717,9 @@ pub mod event_scheduler_client {
             &mut self,
             request: impl tonic::IntoRequest<super::CancelScheduledEventRequest>,
         ) -> Result<
-            tonic::Response<super::super::common::InstructionAck>,
-            tonic::Status,
-        > {
+                tonic::Response<super::super::common::InstructionAck>,
+                tonic::Status,
+            > {
             self.inner
                 .ready()
                 .await
@@ -794,9 +794,9 @@ pub mod event_store_server {
             &self,
             request: tonic::Request<super::ReadHighestSequenceNrRequest>,
         ) -> Result<
-            tonic::Response<super::ReadHighestSequenceNrResponse>,
-            tonic::Status,
-        >;
+                tonic::Response<super::ReadHighestSequenceNrResponse>,
+                tonic::Status,
+            >;
         ///Server streaming response type for the QueryEvents method.
         type QueryEventsStream: futures_core::Stream<
                 Item = Result<super::QueryEventsResponse, tonic::Status>,
@@ -1352,9 +1352,9 @@ pub mod event_scheduler_server {
             &self,
             request: tonic::Request<super::CancelScheduledEventRequest>,
         ) -> Result<
-            tonic::Response<super::super::common::InstructionAck>,
-            tonic::Status,
-        >;
+                tonic::Response<super::super::common::InstructionAck>,
+                tonic::Status,
+            >;
     }
     /// Service to use AxonServer as a provider of an EventScheduler
     #[derive(Debug)]

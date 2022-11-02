@@ -377,9 +377,9 @@ pub mod query_service_client {
                 Message = super::QueryProviderOutbound,
             >,
         ) -> Result<
-            tonic::Response<tonic::codec::Streaming<super::QueryProviderInbound>>,
-            tonic::Status,
-        > {
+                tonic::Response<tonic::codec::Streaming<super::QueryProviderInbound>>,
+                tonic::Status,
+            > {
             self.inner
                 .ready()
                 .await
@@ -400,9 +400,9 @@ pub mod query_service_client {
             &mut self,
             request: impl tonic::IntoRequest<super::QueryRequest>,
         ) -> Result<
-            tonic::Response<tonic::codec::Streaming<super::QueryResponse>>,
-            tonic::Status,
-        > {
+                tonic::Response<tonic::codec::Streaming<super::QueryResponse>>,
+                tonic::Status,
+            > {
             self.inner
                 .ready()
                 .await
@@ -425,9 +425,11 @@ pub mod query_service_client {
                 Message = super::SubscriptionQueryRequest,
             >,
         ) -> Result<
-            tonic::Response<tonic::codec::Streaming<super::SubscriptionQueryResponse>>,
-            tonic::Status,
-        > {
+                tonic::Response<
+                    tonic::codec::Streaming<super::SubscriptionQueryResponse>,
+                >,
+                tonic::Status,
+            > {
             self.inner
                 .ready()
                 .await
