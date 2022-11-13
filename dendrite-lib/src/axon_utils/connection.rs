@@ -4,16 +4,20 @@ use crate::axon_server::control::platform_service_client::PlatformServiceClient;
 use crate::axon_server::control::{ClientIdentification, PlatformInboundInstruction};
 use crate::intellij_work_around::Debuggable;
 use anyhow::{anyhow, Result};
+use async_channel::{Receiver,bounded};
 use async_stream::stream;
 use futures_core::stream::Stream;
 use log::{debug, error, warn};
+use std::collections::HashMap;
 use std::future::Future;
 use std::pin::Pin;
+use std::sync::{Arc, Mutex};
 use std::time;
 use tokio::time::sleep;
 use tonic::transport::Channel;
 use tonic::{Request, Response};
 use uuid::Uuid;
+use crate::axon_utils::{WorkerCommand, WorkerRegistry};
 
 /// Polls AxonServer until it is available and ready.
 pub async fn wait_for_server(host: &str, port: u32, label: &str) -> Result<AxonServerHandle> {
@@ -24,10 +28,18 @@ pub async fn wait_for_server(host: &str, port: u32, label: &str) -> Result<AxonS
         "Axon server handle: {:?}: {:?}: {:?}",
         label, client_id, conn
     );
+    let (tx, rx) = bounded(10);
+    let registry = WorkerRegistry {
+        workers: HashMap::new(),
+        notifications: rx
+    };
+    let registry = Arc::new(Mutex::new(registry));
     let connection = AxonServerHandle {
         display_name: label.to_string(),
         client_id,
         conn,
+        notify: tx,
+        registry
     };
     Ok(connection)
 }
@@ -84,10 +96,10 @@ async fn connect(url: &str, label: &str, client_id: &str) -> Result<Option<Chann
 }
 
 pub fn platform_worker_for(
-    label: &str,
-) -> Box<dyn FnOnce(AxonServerHandle) -> Pin<Box<dyn Future<Output = ()> + Send>> + Sync> {
+    label: &str
+) -> Box<dyn FnOnce(AxonServerHandle,Receiver<WorkerCommand>) -> Pin<Box<dyn Future<Output = ()> + Send>> + Sync> {
     let label = label.to_string();
-    Box::new(move |handle| Box::pin(mute_platform_worker(handle.clone(), label.clone())))
+    Box::new(move |handle,_control_channel: Receiver<WorkerCommand>| Box::pin(mute_platform_worker(handle.clone(), label.clone())))
 }
 
 pub async fn mute_platform_worker(axon_server_handle: AxonServerHandle, label: String) {

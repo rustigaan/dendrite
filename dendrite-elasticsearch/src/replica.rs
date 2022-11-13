@@ -3,17 +3,18 @@ use std::future::Future;
 use std::pin::Pin;
 use std::sync::Arc;
 use anyhow::{anyhow, Context, Result};
+use async_channel::Receiver;
 use bytes::Bytes;
 use elasticsearch::IndexParts;
 use dendrite_lib::axon_server::event::Event;
-use dendrite_lib::axon_utils::{AxonServerHandle, TheHandlerRegistry, TokenStore, empty_handler_registry, event_processor, HandlerRegistry, HandleBuilder};
+use dendrite_lib::axon_utils::{AxonServerHandle, TheHandlerRegistry, TokenStore, empty_handler_registry, event_processor, HandlerRegistry, HandleBuilder, WorkerCommand};
 use log::{debug, error, warn};
 use serde_json::{json, Map, Value};
 use serde::Serialize;
 use dendrite_lib::intellij_work_around::Debuggable;
 use crate::{ElasticQueryModel, create_elastic_query_model, wait_for_elastic_search};
 
-pub(crate) type Transcoder = Arc<Box<dyn Fn(Bytes) -> anyhow::Result<Value> + Send + Sync>>;
+pub(crate) type Transcoder = Arc<Box<dyn Fn(Bytes) -> Result<Value> + Send + Sync>>;
 pub(crate) type Deserializer<T> = dyn Fn(Bytes) -> Result<T, prost::DecodeError> + Send + Sync;
 pub(crate) type DeserializerBox<T> = Box<Deserializer<T>>;
 
@@ -37,8 +38,8 @@ impl TokenStore for ReplicaQueryModel {
     }
 }
 
-pub fn process_events_with(transcoders: Transcoders) -> Box<dyn FnOnce(AxonServerHandle) -> Pin<Box<dyn Future<Output = ()> + Send>> + Sync> {
-    Box::new(move |handle| Box::pin(process_events(handle, transcoders)))
+pub fn process_events_with(transcoders: Transcoders) -> Box<dyn FnOnce(AxonServerHandle,Receiver<WorkerCommand>) -> Pin<Box<dyn Future<Output = ()> + Send>> + Sync> {
+    Box::new(move |handle,_control_channel| Box::pin(process_events(handle, transcoders)))
 }
 
 /// Handles events for the `replica` query model.
@@ -153,13 +154,13 @@ impl Transcoders {
     pub fn insert<T: 'static + Serialize>(mut self, message_type: &str, deserializer: DeserializerBox<T>) -> Transcoders {
         let transcoder = move |buf: Bytes| {
             let object: T = (deserializer)(buf).map_err(|e| anyhow!("Deserialize protobuf error: {:?}", e))?;
-            let result: anyhow::Result<Value> = serde_json::to_value(object).map_err(|e| anyhow!("Serialize JSON error: {:?}", e));
+            let result: Result<Value> = serde_json::to_value(object).map_err(|e| anyhow!("Serialize JSON error: {:?}", e));
             result
         };
         self.0.insert(message_type.to_string(), Arc::new(Box::new(transcoder)));
         self
     }
-    pub fn insert_transcoder(mut self, message_type: &str, transcoder: &'static (dyn Fn(Bytes) -> anyhow::Result<Value> + Send + Sync)) -> Transcoders {
+    pub fn insert_transcoder(mut self, message_type: &str, transcoder: &'static (dyn Fn(Bytes) -> Result<Value> + Send + Sync)) -> Transcoders {
         self.0.insert(message_type.to_string(), Arc::new(Box::new(transcoder)));
         self
     }

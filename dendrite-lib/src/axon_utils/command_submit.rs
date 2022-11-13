@@ -152,17 +152,21 @@ async fn submit_command(
 
 #[cfg(test)]
 mod tests {
+    use std::collections::HashSet;
     use super::*;
     use super::super::AxonServerHandle;
     use crate::axon_server::command::{CommandProviderInbound, CommandProviderOutbound, CommandResponse};
     use crate::axon_server::command::command_service_server::{CommandService, CommandServiceServer};
     use futures_core::stream::Stream;
     use std::pin::Pin;
+    use std::sync::{Arc, Mutex};
+    use tokio::sync::mpsc;
     use tonic::{
         transport::{Endpoint, Server, Uri},
         Request, Response, Status, Streaming
     };
     use tower::service_fn;
+    use crate::axon_utils::WorkerRegistry;
 
     #[tokio::test]
     async fn test_submit_command() -> Result<()> {
@@ -220,10 +224,18 @@ mod tests {
             }))
             .await?;
 
+        let (tx, rx) = mpsc::channel(10);
+        let registry = WorkerRegistry {
+            workers: HashMap::new(),
+            notifications: rx
+        };
+
         let axon_server_handle = AxonServerHandle {
             display_name: "Test AxonServer handle".to_string(),
             client_id: "test-client".to_string(),
-            conn: channel
+            conn: channel,
+            notify: tx,
+            registry: Arc::new(Mutex::new(registry))
         };
 
         let payload_type = "test-payload";

@@ -8,7 +8,7 @@ use anyhow::{Context,Result,anyhow};
 use core::convert::TryFrom;
 use dendrite_lib::register;
 use dendrite_lib::axon_server::event::Event;
-use dendrite_lib::axon_utils::{AsyncApplicableTo, AxonServerHandle, TheHandlerRegistry, TokenStore, empty_handler_registry, event_processor};
+use dendrite_lib::axon_utils::{AsyncApplicableTo, AxonServerHandle, TheHandlerRegistry, TokenStore, empty_handler_registry, event_processor, WorkerCommand};
 use dendrite_macros;
 use jwt::{Header, Token, VerifyWithKey, AlgorithmType, Error};
 use jwt::algorithm::AlgorithmType::Rs256;
@@ -23,6 +23,7 @@ use sha2::digest::FixedOutput;
 use sshkeys;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
+use async_channel::Receiver;
 use rsa::pkcs8::PrivateKeyInfo;
 use tonic;
 use crate::dendrite_config::{CredentialsAddedEvent, CredentialsRemovedEvent, KeyManagerAddedEvent, KeyManagerRemovedEvent, TrustedKeyAddedEvent, TrustedKeyRemovedEvent};
@@ -67,7 +68,7 @@ lazy_static! {
 /// Handles auth events.
 ///
 /// Constructs an event handler registry and delegates to function `event_processor`.
-pub async fn process_events(axon_server_handle : AxonServerHandle) {
+pub async fn process_events(axon_server_handle : AxonServerHandle, _control_channel: Receiver<WorkerCommand>) {
     if let Err(e) = internal_process_events(axon_server_handle).await {
         error!("Error while handling commands: {:?}", e);
     }

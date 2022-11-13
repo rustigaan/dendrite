@@ -12,12 +12,22 @@
 //! * Query API — _accepts queries on a gRPC API and forwards them (again over gRPC to AxonServer)_
 //! * Query processor — _subscribes to queries, executes them against a query model and pass back the results_
 
+use std::collections::HashMap;
+use std::fmt::{Debug, Formatter};
 use crate::intellij_work_around::Debuggable;
 use anyhow::{anyhow, Result};
-use log::debug;
+use async_channel::{Sender,Receiver,bounded};
+use log::{debug, info};
 use prost::Message;
 use std::future::Future;
+use std::pin::Pin;
+use std::sync::{Arc, Mutex};
+use futures_util::TryFutureExt;
+use futures_util::FutureExt;
+use tokio::task::JoinHandle;
+use tonic::{Response, Status};
 use tonic::transport::Channel;
+use uuid::Uuid;
 
 mod command_submit;
 mod command_worker;
@@ -46,6 +56,23 @@ pub use event_query::query_events;
 pub use handler_registry::empty_handler_registry;
 pub use handler_registry::{HandleBuilder, HandlerRegistry, TheHandlerRegistry};
 pub use query_processor::{query_processor, QueryContext, QueryResult};
+use crate::axon_utils::WorkerCommand::Unsubscribe;
+
+struct WorkerRegistry {
+    workers: HashMap<Uuid,WorkerHandle>,
+    notifications: Receiver<Uuid>,
+}
+
+impl Debug for WorkerRegistry {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.write_str("[WorkerRegistry:")?;
+        for worker in self.workers.values() {
+            f.write_str(&format!("{:?}->{:?},", worker.id, worker.label))?;
+        }
+        f.write_str("]")?;
+        Ok(())
+    }
+}
 
 /// A handle for AxonServer.
 #[derive(Debug, Clone)]
@@ -53,19 +80,111 @@ pub struct AxonServerHandle {
     pub display_name: String,
     pub client_id: String,
     pub conn: Channel,
+    pub notify: Sender<Uuid>,
+    registry: Arc<Mutex<WorkerRegistry>>,
 }
 
 impl AxonServerHandle {
-    pub fn spawn_ref<T>(&self, task: &'static (dyn Fn(AxonServerHandle) -> T))
+    fn has_workers(&self) -> Result<bool> {
+        let registry = self.registry.lock();
+        let registry = registry.map_err(|e| anyhow!(e.to_string()))?;
+        Ok(!registry.workers.is_empty())
+    }
+
+    fn remove_worker(&self, id: &Uuid) -> Result<()> {
+        let mut registry = self.registry.lock();
+        let registry = registry.as_mut().map_err(|e| anyhow!(e.to_string()))?;
+        registry.workers.remove(id);
+        Ok(())
+    }
+
+    async fn get_stopped_worker(&self) -> Result<Uuid> {
+        let stopped_worker_receiver = {
+            let registry = self.registry.lock();
+            let registry = registry.map_err(|e| anyhow!(e.to_string()))?;
+            registry.notifications.clone()
+        };
+        stopped_worker_receiver.recv().await.map_err(|e| anyhow!(e.to_string()))
+    }
+}
+
+#[derive(Debug)]
+pub enum RunStatus {
+    Active,
+    Stopped,
+}
+
+pub enum WorkerCommand {
+    Unsubscribe,
+    Stop,
+}
+
+pub struct WorkerHandle {
+    id: Uuid,
+    join_handle: Option<Pin<Box<dyn Future<Output=Result<()>> + Send>>>,
+    control_channel: Sender<WorkerCommand>,
+    label: String,
+}
+
+impl<> WorkerHandle {
+    pub fn get_id(&self) -> Uuid {
+        self.id
+    }
+    pub fn get_join_handle(&mut self) -> &mut Option<Pin<Box<dyn Future<Output=Result<()>> + Send>>> {
+        &mut self.join_handle
+    }
+    pub fn get_control_channel(&self) -> &Sender<WorkerCommand> {
+        &self.control_channel
+    }
+}
+
+impl AxonServerHandle {
+    pub fn spawn_ref<T, S: Into<String>>(&self, label: S, task: &'static (dyn Fn(AxonServerHandle, Receiver<WorkerCommand>) -> T)) -> Result<()>
     where
-        T: Future + Send + 'static,
-        T::Output: Send,
+        T: Future<Output=()> + Send + 'static
     {
-        tokio::spawn((Box::new(task))(self.clone()));
+        let notify = self.notify.clone();
+        let id = Uuid::new_v4();
+        let (tx, rx) = bounded(10);
+        let worker_future = (Box::new(task))((*self).clone(), rx);
+        let join_handle = spawn_worker(worker_future, notify, id).map_err(Into::into);
+        let handle = WorkerHandle {
+            id, join_handle: Some(Box::pin(join_handle)), control_channel: tx, label: label.into()
+        };
+        let mut registry = self.registry.lock();
+        let registry = registry.as_mut().map_err(|e| anyhow!(e.to_string()))?;
+        registry.workers.insert(id, handle);
+        Ok(())
     }
-    pub fn spawn(&self, task: Box<dyn FnOnce(AxonServerHandle) -> PinFuture<()> + Sync>) {
-        tokio::spawn((task)(self.clone()));
+    pub fn spawn<S: Into<String>>(&self, label: S, task: Box<dyn FnOnce(AxonServerHandle, Receiver<WorkerCommand>) -> PinFuture<()>>) -> Result<()> {
+        let notify = self.notify.clone();
+        let id = Uuid::new_v4();
+        let (tx, rx) = bounded(10);
+        let worker_future = (task)((*self).clone(), rx);
+        let join_handle = spawn_worker(worker_future, notify, id).map_err(Into::into);
+        let handle = WorkerHandle {
+            id, join_handle: Some(Box::pin(join_handle)), control_channel: tx, label: label.into()
+        };
+        let mut registry = self.registry.lock();
+        let registry = registry.as_mut().map_err(|e| anyhow!(e.to_string()))?;
+        registry.workers.insert(id, handle);
+        Ok(())
     }
+}
+
+fn spawn_worker<T>(future: T, notify: Sender<Uuid>, id: Uuid) -> JoinHandle<T::Output>
+where
+    T: Future + Send + 'static,
+    T::Output: Send + 'static,
+{
+    tokio::spawn(future.then(move |result| {
+        async move {
+            if let Err(e) = notify.send(id.clone()).await {
+                debug!("Termination notification failed for worker: {:?}: {:?}", id, e);
+            }
+            result
+        }
+    }))
 }
 
 pub trait AxonServerHandleTrait: Sync + AxonServerHandleAsyncTrait {
@@ -76,8 +195,10 @@ pub trait AxonServerHandleTrait: Sync + AxonServerHandleAsyncTrait {
 pub trait AxonServerHandleAsyncTrait
 {
     async fn dispatch(&self, request: Command)
-        -> Result<tonic::Response<CommandResponse>, tonic::Status>;
+        -> Result<Response<CommandResponse>, Status>;
+    async fn join_workers(&self) -> Result<()>;
 }
+
 impl AxonServerHandleTrait for AxonServerHandle {
     fn client_id(&self) -> &str {
         &self.client_id
@@ -86,14 +207,40 @@ impl AxonServerHandleTrait for AxonServerHandle {
         &self.display_name
     }
 }
+
 #[tonic::async_trait]
 impl AxonServerHandleAsyncTrait for AxonServerHandle
 {
-    async fn dispatch(&self, request: Command)
-        -> Result<tonic::Response<CommandResponse>, tonic::Status>
+    async fn dispatch(&self, request: Command) -> Result<Response<CommandResponse>, Status>
     {
         let mut client = CommandServiceClient::new(self.conn.clone());
         client.dispatch(request).await
+    }
+    async fn join_workers(&self) -> Result<()> {
+        if !self.has_workers()? {
+            return Ok(());
+        }
+        let stopped_worker = self.get_stopped_worker().await?;
+        self.remove_worker(&stopped_worker)?;
+        let senders = {
+            let mut registry = self.registry.lock();
+            let registry = registry.as_mut().map_err(|e| anyhow!(e.to_string()))?;
+            let mut pairs = Vec::new();
+            for worker in registry.workers.values() {
+                pairs.push((worker.id, worker.control_channel.clone()));
+            }
+            pairs
+        };
+        for (worker_id, sender) in senders {
+            info!("{:?}: Stopping", worker_id);
+            sender.send(Unsubscribe).await?;
+            sender.send(WorkerCommand::Stop).await?;
+        }
+        while self.has_workers()? {
+            let stopped_worker = self.get_stopped_worker().await?;
+            self.remove_worker(&stopped_worker)?;
+        }
+        Ok(())
     }
 }
 
@@ -154,7 +301,7 @@ pub fn axon_serialize<T: Message>(type_name: &str, message: &T) -> Result<Serial
 /// Describes a `Message` that is applicable to a particular projection type.
 pub trait ApplicableTo<Projection, Metadata>
 where
-    Self: VecU8Message + Send + Sync + std::fmt::Debug,
+    Self: VecU8Message + Send + Sync + Debug,
 {
     /// Applies this message to the given projection.
     fn apply_to(self, metadata: Metadata, projection: &mut Projection) -> Result<()>; // the self type is implicit
@@ -167,7 +314,7 @@ where
 #[tonic::async_trait]
 pub trait AsyncApplicableTo<Projection, Metadata>
 where
-    Self: VecU8Message + Send + Sync + std::fmt::Debug,
+    Self: VecU8Message + Send + Sync + Debug,
 {
     /// Applies this message to the given projection.
     async fn apply_to(self, metadata: Metadata, projection: &mut Projection) -> Result<()>;
