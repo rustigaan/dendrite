@@ -17,13 +17,15 @@ use std::fmt::{Debug, Formatter};
 use crate::intellij_work_around::Debuggable;
 use anyhow::{anyhow, Result};
 use async_channel::{Sender,Receiver,bounded};
-use log::{debug, info};
+use log::{debug, error, info};
 use prost::Message;
 use std::future::Future;
 use std::pin::Pin;
 use std::sync::{Arc, Mutex};
 use futures_util::TryFutureExt;
 use futures_util::FutureExt;
+use tokio::select;
+use tokio::signal::unix::Signal;
 use tokio::task::JoinHandle;
 use tonic::{Response, Status};
 use tonic::transport::Channel;
@@ -99,12 +101,27 @@ impl AxonServerHandle {
     }
 
     async fn get_stopped_worker(&self) -> Result<Uuid> {
-        let stopped_worker_receiver = {
-            let registry = self.registry.lock();
-            let registry = registry.map_err(|e| anyhow!(e.to_string()))?;
-            registry.notifications.clone()
-        };
+        let stopped_worker_receiver = self.get_stopped_worker_receiver()?;
         stopped_worker_receiver.recv().await.map_err(|e| anyhow!(e.to_string()))
+    }
+
+    async fn get_stopped_worker_with_signal(&self, signal_option: &mut Option<Signal>) -> Result<Uuid> {
+        match signal_option {
+            Some(signal) => {
+                let stopped_worker_receiver = self.get_stopped_worker_receiver()?;
+                select! {
+                    id = stopped_worker_receiver.recv() => id.map_err(|e| anyhow!(e.to_string())),
+                    _ = signal.recv() => Ok(Uuid::new_v4())
+                }
+            },
+            None => self.get_stopped_worker().await
+        }
+    }
+
+    fn get_stopped_worker_receiver(&self) -> Result<Receiver<Uuid>> {
+        let registry = self.registry.lock();
+        let registry = registry.map_err(|e| anyhow!(e.to_string()))?;
+        Ok(registry.notifications.clone())
     }
 }
 
@@ -114,6 +131,7 @@ pub enum RunStatus {
     Stopped,
 }
 
+#[derive(Eq,PartialEq)]
 pub enum WorkerCommand {
     Unsubscribe,
     Stop,
@@ -156,7 +174,7 @@ impl AxonServerHandle {
         registry.workers.insert(id, handle);
         Ok(())
     }
-    pub fn spawn<S: Into<String>>(&self, label: S, task: Box<dyn FnOnce(AxonServerHandle, Receiver<WorkerCommand>) -> PinFuture<()>>) -> Result<()> {
+    pub fn spawn<S: Into<String>>(&self, label: S, task: Box<dyn FnOnce(AxonServerHandle, Receiver<WorkerCommand>) -> PinFuture<()>>) -> Result<Uuid> {
         let notify = self.notify.clone();
         let id = Uuid::new_v4();
         let (tx, rx) = bounded(10);
@@ -168,7 +186,7 @@ impl AxonServerHandle {
         let mut registry = self.registry.lock();
         let registry = registry.as_mut().map_err(|e| anyhow!(e.to_string()))?;
         registry.workers.insert(id, handle);
-        Ok(())
+        Ok(id)
     }
 }
 
@@ -197,6 +215,7 @@ pub trait AxonServerHandleAsyncTrait
     async fn dispatch(&self, request: Command)
         -> Result<Response<CommandResponse>, Status>;
     async fn join_workers(&self) -> Result<()>;
+    async fn join_workers_with_signal(&self, terminate: &mut Option<Signal>) -> Result<()>;
 }
 
 impl AxonServerHandleTrait for AxonServerHandle {
@@ -217,10 +236,14 @@ impl AxonServerHandleAsyncTrait for AxonServerHandle
         client.dispatch(request).await
     }
     async fn join_workers(&self) -> Result<()> {
+        let mut never: Option<Signal> = None;
+        self.join_workers_with_signal(&mut never).await
+    }
+    async fn join_workers_with_signal(&self, terminate: &mut Option<Signal>) -> Result<()> {
         if !self.has_workers()? {
             return Ok(());
         }
-        let stopped_worker = self.get_stopped_worker().await?;
+        let stopped_worker = self.get_stopped_worker_with_signal(terminate).await?;
         self.remove_worker(&stopped_worker)?;
         let senders = {
             let mut registry = self.registry.lock();
@@ -233,8 +256,8 @@ impl AxonServerHandleAsyncTrait for AxonServerHandle
         };
         for (worker_id, sender) in senders {
             info!("{:?}: Stopping", worker_id);
-            sender.send(Unsubscribe).await?;
-            sender.send(WorkerCommand::Stop).await?;
+            sender.send(Unsubscribe).await.map_err(|e| {error!("Error while sending 'Unsubscribe': {:?}: {:?}", e, worker_id); ()}).ok();
+            sender.send(WorkerCommand::Stop).await.map_err(|e| {error!("Error while sending 'Stop': {:?}: {:?}", e, worker_id); ()}).ok();
         }
         while self.has_workers()? {
             let stopped_worker = self.get_stopped_worker().await?;
