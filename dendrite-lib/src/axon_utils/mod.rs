@@ -90,6 +90,7 @@ impl AxonServerHandle {
     fn has_workers(&self) -> Result<bool> {
         let registry = self.registry.lock();
         let registry = registry.map_err(|e| anyhow!(e.to_string()))?;
+        debug!("Remaining workers: {:?}", &registry.workers);
         Ok(!registry.workers.is_empty())
     }
 
@@ -125,12 +126,6 @@ impl AxonServerHandle {
     }
 }
 
-#[derive(Debug)]
-pub enum RunStatus {
-    Active,
-    Stopped,
-}
-
 #[derive(Eq,PartialEq)]
 pub enum WorkerCommand {
     Unsubscribe,
@@ -144,7 +139,21 @@ pub struct WorkerHandle {
     label: String,
 }
 
-impl<> WorkerHandle {
+pub struct WorkerControl {
+    control_channel: Receiver<WorkerCommand>,
+    label: String,
+}
+
+impl WorkerControl {
+    pub fn get_label(&self) -> &str {
+        &*self.label
+    }
+    pub fn get_control_channel(&self) -> Receiver<WorkerCommand> {
+        self.control_channel.clone()
+    }
+}
+
+impl WorkerHandle {
     pub fn get_id(&self) -> Uuid {
         self.id
     }
@@ -156,32 +165,53 @@ impl<> WorkerHandle {
     }
 }
 
+impl Debug for WorkerHandle {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.write_str("[WorkerHandle:")?;
+        self.id.fmt(f)?;
+        f.write_str(":")?;
+        self.label.fmt(f)?;
+        f.write_str("]")?;
+        Ok(())
+    }
+}
+
 impl AxonServerHandle {
-    pub fn spawn_ref<T, S: Into<String>>(&self, label: S, task: &'static (dyn Fn(AxonServerHandle, Receiver<WorkerCommand>) -> T)) -> Result<()>
+    pub fn spawn_ref<T, S: Into<String>>(&self, label: S, task: &'static (dyn Fn(AxonServerHandle, WorkerControl) -> T)) -> Result<()>
     where
         T: Future<Output=()> + Send + 'static
     {
+        let label = label.into();
         let notify = self.notify.clone();
         let id = Uuid::new_v4();
         let (tx, rx) = bounded(10);
-        let worker_future = (Box::new(task))((*self).clone(), rx);
+        let worker_control = WorkerControl {
+            control_channel: rx,
+            label: label.clone(),
+        };
+        let worker_future = (Box::new(task))((*self).clone(), worker_control);
         let join_handle = spawn_worker(worker_future, notify, id).map_err(Into::into);
         let handle = WorkerHandle {
-            id, join_handle: Some(Box::pin(join_handle)), control_channel: tx, label: label.into()
+            id, join_handle: Some(Box::pin(join_handle)), control_channel: tx, label
         };
         let mut registry = self.registry.lock();
         let registry = registry.as_mut().map_err(|e| anyhow!(e.to_string()))?;
         registry.workers.insert(id, handle);
         Ok(())
     }
-    pub fn spawn<S: Into<String>>(&self, label: S, task: Box<dyn FnOnce(AxonServerHandle, Receiver<WorkerCommand>) -> PinFuture<()>>) -> Result<Uuid> {
+    pub fn spawn<S: Into<String>>(&self, label: S, task: Box<dyn FnOnce(AxonServerHandle, WorkerControl) -> PinFuture<()>>) -> Result<Uuid> {
+        let label = label.into();
         let notify = self.notify.clone();
         let id = Uuid::new_v4();
         let (tx, rx) = bounded(10);
-        let worker_future = (task)((*self).clone(), rx);
+        let worker_control = WorkerControl {
+            control_channel: rx,
+            label: label.clone(),
+        };
+        let worker_future = (task)((*self).clone(), worker_control);
         let join_handle = spawn_worker(worker_future, notify, id).map_err(Into::into);
         let handle = WorkerHandle {
-            id, join_handle: Some(Box::pin(join_handle)), control_channel: tx, label: label.into()
+            id, join_handle: Some(Box::pin(join_handle)), control_channel: tx, label
         };
         let mut registry = self.registry.lock();
         let registry = registry.as_mut().map_err(|e| anyhow!(e.to_string()))?;
@@ -198,8 +228,9 @@ where
     tokio::spawn(future.then(move |result| {
         async move {
             if let Err(e) = notify.send(id.clone()).await {
-                debug!("Termination notification failed for worker: {:?}: {:?}", id, e);
+                debug!("Termination notification failed for worker: {:?}: {:?}", id.clone(), e);
             }
+            info!("Worker stopped: {:?}", id);
             result
         }
     }))
@@ -250,6 +281,7 @@ impl AxonServerHandleAsyncTrait for AxonServerHandle
             let registry = registry.as_mut().map_err(|e| anyhow!(e.to_string()))?;
             let mut pairs = Vec::new();
             for worker in registry.workers.values() {
+                info!("Worker: {:?}: {:?}", &worker.id, &worker.label);
                 pairs.push((worker.id, worker.control_channel.clone()));
             }
             pairs

@@ -4,20 +4,21 @@ use crate::axon_server::control::platform_service_client::PlatformServiceClient;
 use crate::axon_server::control::{ClientIdentification, PlatformInboundInstruction};
 use crate::intellij_work_around::Debuggable;
 use anyhow::{anyhow, Result};
-use async_channel::{Receiver,bounded};
+use async_channel::bounded;
 use async_stream::stream;
 use futures_core::stream::Stream;
-use log::{debug, error, warn};
+use log::{debug, error, info, warn};
 use std::collections::HashMap;
 use std::future::Future;
 use std::pin::Pin;
 use std::sync::{Arc, Mutex};
 use std::time;
+use tokio::select;
 use tokio::time::sleep;
 use tonic::transport::Channel;
 use tonic::{Request, Response};
 use uuid::Uuid;
-use crate::axon_utils::{WorkerCommand, WorkerRegistry};
+use crate::axon_utils::{WorkerControl, WorkerRegistry};
 
 /// Polls AxonServer until it is available and ready.
 pub async fn wait_for_server(host: &str, port: u32, label: &str) -> Result<AxonServerHandle> {
@@ -97,19 +98,19 @@ async fn connect(url: &str, label: &str, client_id: &str) -> Result<Option<Chann
 
 pub fn platform_worker_for(
     label: &str
-) -> Box<dyn FnOnce(AxonServerHandle,Receiver<WorkerCommand>) -> Pin<Box<dyn Future<Output = ()> + Send>> + Sync> {
+) -> Box<dyn FnOnce(AxonServerHandle,WorkerControl) -> Pin<Box<dyn Future<Output = ()> + Send>> + Sync> {
     let label = label.to_string();
-    Box::new(move |handle,_control_channel: Receiver<WorkerCommand>| Box::pin(mute_platform_worker(handle.clone(), label.clone())))
+    Box::new(move |handle, worker_control: WorkerControl| Box::pin(mute_platform_worker(handle.clone(), label.clone(), worker_control)))
 }
 
-pub async fn mute_platform_worker(axon_server_handle: AxonServerHandle, label: String) {
-    if let Err(e) = platform_worker(axon_server_handle, &label).await {
+pub async fn mute_platform_worker(axon_server_handle: AxonServerHandle, label: String, worker_control: WorkerControl) {
+    if let Err(e) = platform_worker(axon_server_handle, &label, worker_control).await {
         warn!("Platform worker: Error: {:?}", e);
     }
 }
 
 /// Subscribes  to commands, verifies them against the command projection and sends emitted events to AxonServer.
-pub async fn platform_worker(axon_server_handle: AxonServerHandle, label: &str) -> Result<()> {
+pub async fn platform_worker(axon_server_handle: AxonServerHandle, label: &str, worker_control: WorkerControl) -> Result<()> {
     debug!("Platform worker: start");
     let conn = axon_server_handle.conn;
     let client_id = axon_server_handle.client_id;
@@ -121,7 +122,15 @@ pub async fn platform_worker(axon_server_handle: AxonServerHandle, label: &str) 
 
     let mut inbound = response.into_inner();
     loop {
-        match inbound.message().await {
+        let control_channel = worker_control.get_control_channel().clone();
+        let message = select! {
+            message_result = inbound.message() => message_result,
+            _command = control_channel.recv() => {
+                info!("Platform worker stopped: {:?}", label);
+                return Ok(())
+            }
+        };
+        match message {
             Ok(Some(message)) => {
                 debug!(
                     "Incoming (= 'outbound') platform instruction: {:?}",

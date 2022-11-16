@@ -11,17 +11,19 @@ use crate::axon_server::event::event_store_client::EventStoreClient;
 use crate::axon_server::event::Event;
 use crate::axon_server::{ErrorMessage, FlowControl, SerializedObject};
 use crate::intellij_work_around::Debuggable;
+use crate::axon_utils::WorkerControl;
 use anyhow::{anyhow, Result};
 use async_stream::stream;
 use core::convert::TryFrom;
 use futures_core::stream::Stream;
-use log::{debug, error, warn};
+use log::{debug, error, info, warn};
 use lru::LruCache;
 use prost::Message;
 use std::collections::HashMap;
 use std::fmt::{Debug, Formatter};
 use std::ops::Deref;
 use std::sync::{Arc, Mutex};
+use tokio::select;
 use tokio::sync::mpsc::{channel, Receiver, Sender};
 use tonic::transport::Channel;
 use tonic::Request;
@@ -543,8 +545,10 @@ struct AxonCommandResult {
 pub async fn command_worker(
     axon_server_handle: AxonServerHandle,
     aggregate_registry: &mut TheAggregateRegistry,
+    worker_control: WorkerControl,
 ) -> Result<()> {
-    debug!("Command worker: start");
+    let WorkerControl{control_channel,label} = worker_control;
+    debug!("Command worker: start: {:?}", &*label);
 
     let mut client = CommandServiceClient::new(axon_server_handle.conn.clone());
     let mut event_store_client = EventStoreClient::new(axon_server_handle.conn.clone());
@@ -563,7 +567,14 @@ pub async fn command_worker(
 
     let mut inbound = response.into_inner();
     loop {
-        match inbound.message().await {
+        let message = select! {
+            _control = control_channel.recv() => {
+                info!("Command worker stopped");
+                return Ok(());
+            },
+            inbound_message = inbound.message() => inbound_message
+        };
+        match message {
             Ok(Some(inbound)) => {
                 debug!("Inbound message: {:?}", Debuggable::from(&inbound));
                 if let Some(command_provider_inbound::Request::Command(command)) = inbound.request {

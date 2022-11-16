@@ -5,13 +5,14 @@ use crate::axon_server::query::{
 };
 use crate::axon_server::query::{QueryComplete, QueryRequest, QueryResponse, QuerySubscription};
 use crate::axon_server::{FlowControl, SerializedObject};
-use crate::axon_utils::AxonServerHandle;
+use crate::axon_utils::{AxonServerHandle, WorkerControl};
 use crate::intellij_work_around::Debuggable;
 use anyhow::{anyhow, Result};
 use async_stream::stream;
 use futures_core::stream::Stream;
-use log::{debug, error, warn};
+use log::{debug, error, info, warn};
 use std::collections::HashMap;
+use tokio::select;
 use tokio::sync::mpsc::{channel, Receiver, Sender};
 use tonic::Request;
 use uuid::Uuid;
@@ -37,8 +38,10 @@ pub async fn query_processor<Q: QueryContext + Send + Sync + Clone>(
     axon_server_handle: AxonServerHandle,
     query_context: Q,
     query_handler_registry: TheHandlerRegistry<Q, QueryRequest, QueryResult>,
+    worker_control: WorkerControl,
 ) -> Result<()> {
-    debug!("Query processor: start");
+    let WorkerControl{control_channel,label} = worker_control;
+    debug!("Query processor: start: {:?}", &*label);
 
     let mut client = QueryServiceClient::new(axon_server_handle.conn.clone());
 
@@ -54,7 +57,14 @@ pub async fn query_processor<Q: QueryContext + Send + Sync + Clone>(
 
     let mut inbound = response.into_inner();
     loop {
-        match inbound.message().await {
+        let message = select! {
+            _control = control_channel.recv() => {
+                info!("Query processor stopped");
+                return Ok(());
+            },
+            inbound_message = inbound.message() => inbound_message
+        };
+        match message {
             Ok(Some(inbound)) => {
                 debug!("Inbound message: {:?}", Debuggable::from(&inbound));
                 if let Some(query_provider_inbound::Request::Query(query)) = inbound.request {

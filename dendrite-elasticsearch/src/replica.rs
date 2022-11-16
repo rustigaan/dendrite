@@ -3,11 +3,10 @@ use std::future::Future;
 use std::pin::Pin;
 use std::sync::Arc;
 use anyhow::{anyhow, Context, Result};
-use async_channel::Receiver;
 use bytes::Bytes;
 use elasticsearch::IndexParts;
 use dendrite_lib::axon_server::event::Event;
-use dendrite_lib::axon_utils::{AxonServerHandle, TheHandlerRegistry, TokenStore, empty_handler_registry, event_processor, HandlerRegistry, HandleBuilder, WorkerCommand};
+use dendrite_lib::axon_utils::{AxonServerHandle, TheHandlerRegistry, TokenStore, empty_handler_registry, event_processor, HandlerRegistry, HandleBuilder, WorkerControl};
 use log::{debug, error, warn};
 use serde_json::{json, Map, Value};
 use serde::Serialize;
@@ -38,21 +37,30 @@ impl TokenStore for ReplicaQueryModel {
     }
 }
 
-pub fn process_events_with(transcoders: Transcoders) -> Box<dyn FnOnce(AxonServerHandle,Receiver<WorkerCommand>) -> Pin<Box<dyn Future<Output = ()> + Send>> + Sync> {
-    Box::new(move |handle,_control_channel| Box::pin(process_events(handle, transcoders)))
+pub fn process_events_with(transcoders: Transcoders) -> Box<dyn FnOnce(AxonServerHandle,WorkerControl) -> Pin<Box<dyn Future<Output = ()> + Send>> + Sync> {
+    Box::new(move |handle, worker_control| Box::pin(process_events(handle, transcoders, worker_control)))
 }
 
 /// Handles events for the `replica` query model.
 ///
 /// Constructs an event handler registry and delegates to function `event_processor`.
-pub async fn process_events(axon_server_handle: AxonServerHandle, transcoders: Transcoders) {
-    if let Err(e) = internal_process_events(axon_server_handle, transcoders).await {
+pub async fn process_events(
+    axon_server_handle: AxonServerHandle,
+    transcoders: Transcoders,
+    worker_control: WorkerControl,
+) {
+    if let Err(e) = internal_process_events(axon_server_handle, transcoders, worker_control).await {
         error!("Error while handling events: {:?}", e);
     }
     debug!("Stopped handling events for replica query model");
 }
 
-async fn internal_process_events(axon_server_handle: AxonServerHandle, transcoders: Transcoders) -> Result<()> {
+async fn internal_process_events(
+    axon_server_handle: AxonServerHandle,
+    transcoders: Transcoders,
+    worker_control: WorkerControl,
+) -> Result<()> {
+    debug!("Replica: start: {:?}", worker_control.get_label());
     let client = wait_for_elastic_search().await?;
     debug!("Elastic Search client: {:?}", client);
 
@@ -72,7 +80,7 @@ async fn internal_process_events(axon_server_handle: AxonServerHandle, transcode
     ).ignore_output().build();
     event_handler_registry.append_category_handle(".*", handle)?;
 
-    event_processor(axon_server_handle, query_model, event_handler_registry)
+    event_processor(axon_server_handle, query_model, event_handler_registry, worker_control)
         .await
         .context("Error while handling commands")
 }
