@@ -346,7 +346,7 @@ dependencies = [
 
 [[package]]
 name = "dendrite"
-version = "0.11.0"
+version = "0.12.0"
 dependencies = [
  "dendrite_auth",
  "dendrite_elasticsearch",
@@ -356,7 +356,7 @@ dependencies = [
 
 [[package]]
 name = "dendrite_auth"
-version = "0.8.0"
+version = "0.9.0"
 dependencies = [
  "anyhow",
  "async-channel",
@@ -379,7 +379,7 @@ dependencies = [
 
 [[package]]
 name = "dendrite_elasticsearch"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "anyhow",
  "async-channel",
@@ -397,7 +397,7 @@ dependencies = [
 
 [[package]]
 name = "dendrite_lib"
-version = "0.11.0"
+version = "0.12.0"
 dependencies = [
  "anyhow",
  "async-channel",
