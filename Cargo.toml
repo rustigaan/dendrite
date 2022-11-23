@@ -6,4 +6,5 @@ members = [
   "dendrite-auth",
   "dendrite-macros",
   "dendrite-elasticsearch",
+  "dendrite-mongodb",
 ]
