@@ -14,3 +14,8 @@ pub mod auth {
 pub mod elasticsearch {
     pub use ::dendrite_elasticsearch::*;
 }
+
+#[cfg(feature="dendrite_mongodb")]
+pub mod mongodb {
+    pub use ::dendrite_mongodb::*;
+}

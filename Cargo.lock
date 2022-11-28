@@ -456,6 +456,7 @@ dependencies = [
  "dendrite_elasticsearch",
  "dendrite_lib",
  "dendrite_macros",
+ "dendrite_mongodb",
 ]
 
 [[package]]
