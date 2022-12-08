@@ -6,7 +6,7 @@
 use anyhow::Result;
 use dendrite_lib::axon_utils::TokenStore;
 use log::{debug, warn};
-use mongodb::{Client, Database};
+use mongodb::{Client, Collection, Database};
 use mongodb::bson::{Bson, doc, Document};
 use mongodb::options::{ClientOptions,UpdateOptions};
 use std::time;
@@ -43,8 +43,8 @@ async fn try_to_connect<S: Into<String>, T: Into<String>>(url: S, app_name: T) -
 
 #[derive(Clone)]
 pub struct MongoQueryModel {
-    database: Database,
     identifier: String,
+    database: Database,
 }
 
 impl MongoQueryModel {
@@ -57,15 +57,16 @@ impl MongoQueryModel {
     }
 }
 
-pub fn create_mongodb_query_model(
+pub fn create_mongodb_query_model<E: Into<String>>(
+    identifier: E,
     mongo_client: Client,
     database_name: &str,
-    identifier: String,
 ) -> MongoQueryModel {
+    let identifier = identifier.into();
     let database = mongo_client.database(database_name);
     MongoQueryModel {
-        database,
         identifier,
+        database,
     }
 }
 
@@ -104,5 +105,55 @@ impl TokenStore for MongoQueryModel {
             }
         }
         Ok(-1)
+    }
+}
+
+#[derive(Clone)]
+pub struct MongoCollectionQueryModel {
+    mongo_query_model: MongoQueryModel,
+    collection: Collection<Document>,
+}
+
+impl MongoCollectionQueryModel {
+    pub fn get_database(&self) -> &Database {
+        &self.mongo_query_model.database
+    }
+
+    pub fn get_identifier(&self) -> &str {
+        &self.mongo_query_model.identifier
+    }
+
+    pub fn get_collection(&self) -> &Collection<Document> {
+        &self.collection
+    }
+}
+
+pub fn create_mongodb_collection_query_model<E: Into<String>>(
+    identifier: E,
+    mongo_client: Client,
+    database_name: &str,
+    collection_name: &str,
+) -> MongoCollectionQueryModel {
+    let identifier = identifier.into();
+    let database = mongo_client.database(database_name);
+    let collection = database.collection(collection_name);
+    let mongo_query_model = MongoQueryModel {
+        database,
+        identifier,
+    };
+    MongoCollectionQueryModel {
+        mongo_query_model,
+        collection,
+    }
+}
+
+#[async_trait::async_trait]
+impl TokenStore for MongoCollectionQueryModel {
+    async fn store_token(&self, token: i64) {
+        self.mongo_query_model.store_token(token).await
+    }
+
+    async fn retrieve_token(&self) -> Result<i64> {
+        self.mongo_query_model.retrieve_token().await
     }
 }

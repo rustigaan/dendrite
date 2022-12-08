@@ -152,7 +152,6 @@ async fn submit_command(
 
 #[cfg(test)]
 mod tests {
-    use std::collections::HashSet;
     use super::*;
     use super::super::AxonServerHandle;
     use crate::axon_server::command::{CommandProviderInbound, CommandProviderOutbound, CommandResponse};
@@ -160,7 +159,6 @@ mod tests {
     use futures_core::stream::Stream;
     use std::pin::Pin;
     use std::sync::{Arc, Mutex};
-    use tokio::sync::mpsc;
     use tonic::{
         transport::{Endpoint, Server, Uri},
         Request, Response, Status, Streaming
@@ -224,7 +222,7 @@ mod tests {
             }))
             .await?;
 
-        let (tx, rx) = mpsc::channel(10);
+        let (tx, rx) = async_channel::bounded(10);
         let registry = WorkerRegistry {
             workers: HashMap::new(),
             notifications: rx
