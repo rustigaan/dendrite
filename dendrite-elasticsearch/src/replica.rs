@@ -1,24 +1,27 @@
+use crate::{create_elastic_query_model, wait_for_elastic_search, ElasticQueryModel};
+use anyhow::{anyhow, Context, Result};
+use bytes::Bytes;
+use dendrite_lib::axon_server::event::Event;
+use dendrite_lib::axon_utils::{
+    empty_handler_registry, event_processor, AxonServerHandle, HandleBuilder, HandlerRegistry,
+    TheHandlerRegistry, TokenStore, WorkerControl,
+};
+use dendrite_lib::intellij_work_around::Debuggable;
+use elasticsearch::IndexParts;
+use log::{debug, error, warn};
+use serde::Serialize;
+use serde_json::{json, Map, Value};
 use std::collections::HashMap;
 use std::future::Future;
 use std::pin::Pin;
 use std::sync::Arc;
-use anyhow::{anyhow, Context, Result};
-use bytes::Bytes;
-use elasticsearch::IndexParts;
-use dendrite_lib::axon_server::event::Event;
-use dendrite_lib::axon_utils::{AxonServerHandle, TheHandlerRegistry, TokenStore, empty_handler_registry, event_processor, HandlerRegistry, HandleBuilder, WorkerControl};
-use log::{debug, error, warn};
-use serde_json::{json, Map, Value};
-use serde::Serialize;
-use dendrite_lib::intellij_work_around::Debuggable;
-use crate::{ElasticQueryModel, create_elastic_query_model, wait_for_elastic_search};
 
 pub(crate) type Transcoder = Arc<Box<dyn Fn(Bytes) -> Result<Value> + Send + Sync>>;
 pub(crate) type Deserializer<T> = dyn Fn(Bytes) -> Result<T, prost::DecodeError> + Send + Sync;
 pub(crate) type DeserializerBox<T> = Box<Deserializer<T>>;
 
 #[derive(Clone)]
-pub struct Transcoders(HashMap<String,Transcoder>);
+pub struct Transcoders(HashMap<String, Transcoder>);
 
 #[derive(Clone)]
 struct ReplicaQueryModel {
@@ -37,8 +40,14 @@ impl TokenStore for ReplicaQueryModel {
     }
 }
 
-pub fn process_events_with(transcoders: Transcoders) -> Box<dyn FnOnce(AxonServerHandle,WorkerControl) -> Pin<Box<dyn Future<Output = ()> + Send>> + Sync> {
-    Box::new(move |handle, worker_control| Box::pin(process_events(handle, transcoders, worker_control)))
+pub fn process_events_with(
+    transcoders: Transcoders,
+) -> Box<
+    dyn FnOnce(AxonServerHandle, WorkerControl) -> Pin<Box<dyn Future<Output = ()> + Send>> + Sync,
+> {
+    Box::new(move |handle, worker_control| {
+        Box::pin(process_events(handle, transcoders, worker_control))
+    })
 }
 
 /// Handles events for the `replica` query model.
@@ -65,7 +74,10 @@ async fn internal_process_events(
     debug!("Elastic Search client: {:?}", client);
 
     let elastic_query_model = create_elastic_query_model(client, "replica".to_string());
-    let query_model = ReplicaQueryModel{ elastic_query_model, transcoders };
+    let query_model = ReplicaQueryModel {
+        elastic_query_model,
+        transcoders,
+    };
 
     let mut event_handler_registry: TheHandlerRegistry<
         ReplicaQueryModel,
@@ -76,16 +88,23 @@ async fn internal_process_events(
     let handle = HandleBuilder::new(
         "any-event",
         &null_deserializer,
-        &(|e,q,m| Box::pin(handle_registered_event(e, q, m)))
-    ).ignore_output().build();
+        &(|e, q, m| Box::pin(handle_registered_event(e, q, m))),
+    )
+    .ignore_output()
+    .build();
     event_handler_registry.append_category_handle(".*", handle)?;
 
-    event_processor(axon_server_handle, query_model, event_handler_registry, worker_control)
-        .await
-        .context("Error while handling commands")
+    event_processor(
+        axon_server_handle,
+        query_model,
+        event_handler_registry,
+        worker_control,
+    )
+    .await
+    .context("Error while handling commands")
 }
 
-fn null_deserializer(_buf: Bytes) -> Result<(),prost::DecodeError> {
+fn null_deserializer(_buf: Bytes) -> Result<(), prost::DecodeError> {
     Ok(())
 }
 
@@ -97,7 +116,10 @@ async fn handle_registered_event(
     let query_model_name = query_model.elastic_query_model.get_identifier().to_string();
     let event_id = event.message_identifier.clone();
     if let Err(e) = handle_registered_event_internal(event, query_model).await {
-        warn!("Error processing event for query model: {:?}: {:?}: {:?}", event_id, query_model_name, e);
+        warn!(
+            "Error processing event for query model: {:?}: {:?}: {:?}",
+            event_id, query_model_name, e
+        );
     }
     Ok(None)
 }
@@ -105,7 +127,11 @@ async fn handle_registered_event_internal(
     event: Event,
     query_model: ReplicaQueryModel,
 ) -> Result<Option<()>> {
-    debug!("Apply any event to ReplicaQueryModel: {:?}: {:?}", Debuggable::from(&event), query_model.elastic_query_model.get_identifier());
+    debug!(
+        "Apply any event to ReplicaQueryModel: {:?}: {:?}",
+        Debuggable::from(&event),
+        query_model.elastic_query_model.get_identifier()
+    );
     if let Some(serialized_object) = &event.payload {
         let payload_type = &*serialized_object.r#type;
         let buf = &serialized_object.data;
@@ -120,8 +146,14 @@ async fn handle_registered_event_internal(
         let mut json_value = Map::new();
         json_value.insert("type".to_string(), json!(payload_type));
         json_value.insert("event_id".to_string(), json!(event.message_identifier));
-        json_value.insert("aggregate_id".to_string(), json!(event.aggregate_identifier));
-        json_value.insert("aggregate_sequence_number".to_string(), json!(event.aggregate_sequence_number));
+        json_value.insert(
+            "aggregate_id".to_string(),
+            json!(event.aggregate_identifier),
+        );
+        json_value.insert(
+            "aggregate_sequence_number".to_string(),
+            json!(event.aggregate_sequence_number),
+        );
         json_value.insert("aggregate_type".to_string(), json!(event.aggregate_type));
         json_value.insert("timestamp".to_string(), json!(event.timestamp));
         json_value.insert("meta_data".to_string(), meta_data_json);
@@ -142,7 +174,10 @@ async fn handle_registered_event_internal(
         let es_client = query_model.elastic_query_model.get_client();
         debug!("Replica: ElasticSearch client: {:?}", es_client);
         let response = es_client
-            .index(IndexParts::IndexId(query_model.elastic_query_model.get_identifier(),&*event.message_identifier))
+            .index(IndexParts::IndexId(
+                query_model.elastic_query_model.get_identifier(),
+                &*event.message_identifier,
+            ))
             .body(json_value)
             .send()
             .await;
@@ -156,20 +191,36 @@ impl Transcoders {
         Transcoders(HashMap::new())
     }
 
-    pub fn insert_ref<T: 'static + Serialize>(self, message_type: &str, deserializer: &'static Deserializer<T>) -> Transcoders {
+    pub fn insert_ref<T: 'static + Serialize>(
+        self,
+        message_type: &str,
+        deserializer: &'static Deserializer<T>,
+    ) -> Transcoders {
         self.insert(message_type, Box::new(deserializer))
     }
-    pub fn insert<T: 'static + Serialize>(mut self, message_type: &str, deserializer: DeserializerBox<T>) -> Transcoders {
+    pub fn insert<T: 'static + Serialize>(
+        mut self,
+        message_type: &str,
+        deserializer: DeserializerBox<T>,
+    ) -> Transcoders {
         let transcoder = move |buf: Bytes| {
-            let object: T = (deserializer)(buf).map_err(|e| anyhow!("Deserialize protobuf error: {:?}", e))?;
-            let result: Result<Value> = serde_json::to_value(object).map_err(|e| anyhow!("Serialize JSON error: {:?}", e));
+            let object: T =
+                (deserializer)(buf).map_err(|e| anyhow!("Deserialize protobuf error: {:?}", e))?;
+            let result: Result<Value> =
+                serde_json::to_value(object).map_err(|e| anyhow!("Serialize JSON error: {:?}", e));
             result
         };
-        self.0.insert(message_type.to_string(), Arc::new(Box::new(transcoder)));
+        self.0
+            .insert(message_type.to_string(), Arc::new(Box::new(transcoder)));
         self
     }
-    pub fn insert_transcoder(mut self, message_type: &str, transcoder: &'static (dyn Fn(Bytes) -> Result<Value> + Send + Sync)) -> Transcoders {
-        self.0.insert(message_type.to_string(), Arc::new(Box::new(transcoder)));
+    pub fn insert_transcoder(
+        mut self,
+        message_type: &str,
+        transcoder: &'static (dyn Fn(Bytes) -> Result<Value> + Send + Sync),
+    ) -> Transcoders {
+        self.0
+            .insert(message_type.to_string(), Arc::new(Box::new(transcoder)));
         self
     }
 }

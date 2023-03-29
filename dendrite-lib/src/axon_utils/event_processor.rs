@@ -7,7 +7,7 @@ use crate::intellij_work_around::Debuggable;
 use anyhow::Result;
 use async_stream::stream;
 use futures_core::stream::Stream;
-use log::{debug,info};
+use log::{debug, info};
 use tokio::select;
 use tokio::sync::mpsc::{channel, Receiver, Sender};
 
@@ -34,7 +34,10 @@ pub async fn event_processor<Q: TokenStore + Send + Sync + Clone>(
     event_handler_registry: TheHandlerRegistry<Q, Event, Option<Q>>,
     worker_control: WorkerControl,
 ) -> Result<()> {
-    let WorkerControl{control_channel,label} = &worker_control;
+    let WorkerControl {
+        control_channel,
+        label,
+    } = &worker_control;
     debug!("Event processor: start: {:?}", label);
 
     let conn = axon_server_handle.conn.clone();
@@ -48,12 +51,12 @@ pub async fn event_processor<Q: TokenStore + Send + Sync + Clone>(
 
     debug!("Event Processor: calling open_stream");
     let response = select! {
-            response_result = client.list_events(outbound) => response_result?,
-            _command = control_channel.recv() => {
-                info!("Event processor stopped while waiting for open stream: {:?}", label);
-                return Ok(())
-            }
-        };
+        response_result = client.list_events(outbound) => response_result?,
+        _command = control_channel.recv() => {
+            info!("Event processor stopped while waiting for open stream: {:?}", label);
+            return Ok(())
+        }
+    };
     debug!("Stream response: {:?}: {:?}", label, response);
 
     let mut events = response.into_inner();
@@ -66,7 +69,11 @@ pub async fn event_processor<Q: TokenStore + Send + Sync + Clone>(
                 return Ok(())
             }
         };
-        debug!("Event with token: {:?}: {:?}", label, event_with_token.as_ref().map(|e| Debuggable::from(e)));
+        debug!(
+            "Event with token: {:?}: {:?}",
+            label,
+            event_with_token.as_ref().map(|e| Debuggable::from(e))
+        );
 
         if let Some(EventWithToken {
             event: Some(event),

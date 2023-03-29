@@ -10,8 +10,8 @@ use crate::axon_server::common::MetaDataValue;
 use crate::axon_server::event::event_store_client::EventStoreClient;
 use crate::axon_server::event::Event;
 use crate::axon_server::{ErrorMessage, FlowControl, SerializedObject};
-use crate::intellij_work_around::Debuggable;
 use crate::axon_utils::WorkerControl;
+use crate::intellij_work_around::Debuggable;
 use anyhow::{anyhow, Result};
 use async_stream::stream;
 use core::convert::TryFrom;
@@ -334,7 +334,9 @@ pub fn create_aggregate_definition<P: VecU8Message + Send + Sync + Clone>(
     >,
     sourcing_handler_registry: TheHandlerRegistry<P, Event, P>,
 ) -> AggregateDefinition<P> {
-    let cache = Arc::new(Mutex::new(LruCache::new(TryFrom::try_from(1024_usize).unwrap())));
+    let cache = Arc::new(Mutex::new(LruCache::new(
+        TryFrom::try_from(1024_usize).unwrap(),
+    )));
     let empty_projection = ProjectionFactory {
         factory: empty_projection,
     };
@@ -397,9 +399,7 @@ async fn handle_command<P: VecU8Message + Send + Sync + Clone + Debug + 'static>
     }
 }
 
-async fn internal_handle_command<
-    P: VecU8Message + Send + Sync + Clone + Debug + 'static,
->(
+async fn internal_handle_command<P: VecU8Message + Send + Sync + Clone + Debug + 'static>(
     command_handler: &dyn SubscriptionHandle<
         Arc<async_lock::Mutex<AggregateContext<P>>>,
         Command,
@@ -547,7 +547,10 @@ pub async fn command_worker(
     aggregate_registry: &mut TheAggregateRegistry,
     worker_control: WorkerControl,
 ) -> Result<()> {
-    let WorkerControl{control_channel,label} = worker_control;
+    let WorkerControl {
+        control_channel,
+        label,
+    } = worker_control;
     debug!("Command worker: start: {:?}", &*label);
 
     let mut client = CommandServiceClient::new(axon_server_handle.conn.clone());

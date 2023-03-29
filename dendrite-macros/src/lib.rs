@@ -3,8 +3,12 @@ extern crate proc_macro;
 use proc_macro::TokenStream;
 use proc_macro2::Span;
 use quote::quote;
-use syn::{AngleBracketedGenericArguments, FnArg, GenericArgument, Ident, ItemFn, LitStr, Pat, PatIdent, Path, PathArguments, PathSegment, PatType, ReturnType, Signature, Type, TypePath, TypeReference, parse_macro_input, parse2};
 use syn::punctuated::Iter;
+use syn::{
+    parse2, parse_macro_input, AngleBracketedGenericArguments, FnArg, GenericArgument, Ident,
+    ItemFn, LitStr, Pat, PatIdent, PatType, Path, PathArguments, PathSegment, ReturnType,
+    Signature, Type, TypePath, TypeReference,
+};
 
 #[proc_macro_attribute]
 pub fn event_handler(_attr: TokenStream, item: TokenStream) -> TokenStream {
@@ -18,8 +22,8 @@ pub fn event_handler(_attr: TokenStream, item: TokenStream) -> TokenStream {
 
 fn impl_event_handler(ast: &ItemFn) -> TokenStream {
     // println!("AST: {:?}", ast);
-    let ItemFn{sig, block, ..} = ast;
-    let Signature {ident, inputs, ..} = sig;
+    let ItemFn { sig, block, .. } = ast;
+    let Signature { ident, inputs, .. } = sig;
     // println!("Signature: {:?}", sig);
 
     let ident_string = ident.to_string();
@@ -29,8 +33,10 @@ fn impl_event_handler(ast: &ItemFn) -> TokenStream {
     let ident_helper = Ident::new(&format!("{}_helper", ident_string), ident_span);
 
     let mut arg_iter = inputs.iter();
-    let (event_arg_name, event_type) = split_argument(arg_iter.next().unwrap(), &ident_string, "event");
-    let (query_model_arg_name, query_model_type) = split_argument(arg_iter.next().unwrap(), &ident_string, "query model");
+    let (event_arg_name, event_type) =
+        split_argument(arg_iter.next().unwrap(), &ident_string, "event");
+    let (query_model_arg_name, query_model_type) =
+        split_argument(arg_iter.next().unwrap(), &ident_string, "query model");
     let metadata_arg = get_metadata_arg(&mut arg_iter, "event", "Event", ident_span);
 
     let event_type_ident = get_type_ident(event_type, &ident_string, "event");
@@ -83,8 +89,13 @@ pub fn command_handler(_attr: TokenStream, item: TokenStream) -> TokenStream {
 
 fn impl_command_handler(ast: &ItemFn) -> TokenStream {
     // println!("AST: {:?}", ast);
-    let ItemFn{sig, block, ..} = ast;
-    let Signature {ident, inputs, output, ..} = sig;
+    let ItemFn { sig, block, .. } = ast;
+    let Signature {
+        ident,
+        inputs,
+        output,
+        ..
+    } = sig;
 
     let ident_string = ident.to_string();
     let ident_span = ident.span();
@@ -93,18 +104,21 @@ fn impl_command_handler(ast: &ItemFn) -> TokenStream {
     let ident_impl = Ident::new(&format!("{}_impl", ident_string), ident_span);
 
     let mut arg_iter = inputs.iter();
-    let (command_arg_name, command_type) = split_argument(arg_iter.next().unwrap(), &ident_string, "command");
-    let (context_arg_name, context_type) = split_argument(arg_iter.next().unwrap(), &ident_string, "context");
+    let (command_arg_name, command_type) =
+        split_argument(arg_iter.next().unwrap(), &ident_string, "command");
+    let (context_arg_name, context_type) =
+        split_argument(arg_iter.next().unwrap(), &ident_string, "context");
     let context_elem_type = get_elem_type_argument(context_type, &ident_string, "context");
     let metadata_arg = get_metadata_arg(&mut arg_iter, "command", "Command", ident_span);
 
     let command_type_ident = get_type_ident(command_type, &ident_string, "command");
     // println!("Event type ident: {:?}", event_type_ident);
-    let command_type_literal = LitStr::new(&command_type_ident.to_string(), command_type_ident.span());
+    let command_type_literal =
+        LitStr::new(&command_type_ident.to_string(), command_type_ident.span());
 
     let (output_type, output_type_ident) = match output {
         ReturnType::Type(_, t) => (t, get_return_type_ident(&**t, &ident_string, "result")),
-        _ => panic!("Missing output type: {:?}", ident)
+        _ => panic!("Missing output type: {:?}", ident),
     };
     let output_type_literal = LitStr::new(&output_type_ident.to_string(), output_type_ident.span());
 
@@ -147,8 +161,8 @@ pub fn event_sourcing_handler(_attr: TokenStream, item: TokenStream) -> TokenStr
 
 fn impl_event_sourcing_handler(ast: &ItemFn) -> TokenStream {
     // println!("AST: {:?}", ast);
-    let ItemFn{sig, block, ..} = ast;
-    let Signature {ident, inputs, ..} = sig;
+    let ItemFn { sig, block, .. } = ast;
+    let Signature { ident, inputs, .. } = sig;
 
     let ident_string = ident.to_string();
     let ident_span = ident.span();
@@ -156,8 +170,10 @@ fn impl_event_sourcing_handler(ast: &ItemFn) -> TokenStream {
     let ident_helper = Ident::new(&format!("{}_helper", ident_string), ident_span);
 
     let mut arg_iter = inputs.iter();
-    let (event_arg_name, event_type) = split_argument(arg_iter.next().unwrap(), &ident_string, "event");
-    let (projection_arg_name, projection_type) = split_argument(arg_iter.next().unwrap(), &ident_string, "projection");
+    let (event_arg_name, event_type) =
+        split_argument(arg_iter.next().unwrap(), &ident_string, "event");
+    let (projection_arg_name, projection_type) =
+        split_argument(arg_iter.next().unwrap(), &ident_string, "projection");
     let metadata_arg = get_metadata_arg(&mut arg_iter, "event", "Event", ident_span);
 
     let event_type_ident = get_type_ident(event_type, &ident_string, "event");
@@ -197,56 +213,104 @@ fn impl_event_sourcing_handler(ast: &ItemFn) -> TokenStream {
     gen.into()
 }
 
-fn split_argument<'a>(argument: &'a FnArg, handler_name: &str, qualifier: &str) -> (&'a Ident, &'a Box<Type>) {
-    if let FnArg::Typed(PatType {pat, ty, ..}) = argument {
-        if let Pat::Ident(PatIdent {ref ident, ..}) = **pat {
+fn split_argument<'a>(
+    argument: &'a FnArg,
+    handler_name: &str,
+    qualifier: &str,
+) -> (&'a Ident, &'a Box<Type>) {
+    if let FnArg::Typed(PatType { pat, ty, .. }) = argument {
+        if let Pat::Ident(PatIdent { ref ident, .. }) = **pat {
             return (ident, ty);
         }
     }
     panic!("Can't parse argument: {:?}: {:?}", handler_name, qualifier)
 }
 
-fn get_elem_type_argument<'a>(argument: &'a Type, handler_name: &str, qualifier: &str) -> &'a Box<Type> {
+fn get_elem_type_argument<'a>(
+    argument: &'a Type,
+    handler_name: &str,
+    qualifier: &str,
+) -> &'a Box<Type> {
     // println!("Get elem type of: {:?}", argument);
     if let Type::Reference(TypeReference { elem, .. }) = argument {
         return elem;
     }
-    panic!("Can't get element type of reference: {:?}: {:?}", handler_name, qualifier)
+    panic!(
+        "Can't get element type of reference: {:?}: {:?}",
+        handler_name, qualifier
+    )
 }
 
 fn get_type_ident<'a>(ty: &'a Type, handler_name: &str, qualifier: &str) -> &'a Ident {
-    if let Type::Path(TypePath {path: Path {segments, ..},..}) = ty {
+    if let Type::Path(TypePath {
+        path: Path { segments, .. },
+        ..
+    }) = ty
+    {
         let last_segment = segments.last().unwrap();
         return &last_segment.ident;
     }
-    panic!("Can't get type identifier: {:?}: {:?}", handler_name, qualifier)
+    panic!(
+        "Can't get type identifier: {:?}: {:?}",
+        handler_name, qualifier
+    )
 }
 
 fn get_return_type_ident<'a>(ty: &'a Type, handler_name: &str, qualifier: &str) -> &'a Ident {
     let ty = get_first_generic_type_argument(ty, handler_name, qualifier);
     let ty = get_first_generic_type_argument(ty, handler_name, qualifier);
-    if let Type::Path(TypePath {path:Path {segments:arg_segments,..}, ..}) = ty {
+    if let Type::Path(TypePath {
+        path: Path {
+            segments: arg_segments,
+            ..
+        },
+        ..
+    }) = ty
+    {
         let last_arg_segment = arg_segments.last().unwrap();
-        let PathSegment { ident, ..} = last_arg_segment;
+        let PathSegment { ident, .. } = last_arg_segment;
         return ident;
     }
-    panic!("Can't get return type identifier: {:?}: {:?}", handler_name, qualifier)
+    panic!(
+        "Can't get return type identifier: {:?}: {:?}",
+        handler_name, qualifier
+    )
 }
 
-fn get_first_generic_type_argument<'a>(ty: &'a Type, handler_name: &str, qualifier: &str) -> &'a Type {
+fn get_first_generic_type_argument<'a>(
+    ty: &'a Type,
+    handler_name: &str,
+    qualifier: &str,
+) -> &'a Type {
     // println!("Try to get first generic type argument: {:?}", ty);
-    if let Type::Path(TypePath { path: Path { segments, .. }, .. }) = ty {
+    if let Type::Path(TypePath {
+        path: Path { segments, .. },
+        ..
+    }) = ty
+    {
         let last_segment = segments.last().unwrap();
-        if let PathSegment { arguments: PathArguments::AngleBracketed(AngleBracketedGenericArguments { args, .. }), .. } = last_segment {
+        if let PathSegment {
+            arguments: PathArguments::AngleBracketed(AngleBracketedGenericArguments { args, .. }),
+            ..
+        } = last_segment
+        {
             if let Some(GenericArgument::Type(result)) = args.first() {
                 return result;
             }
         }
     }
-    panic!("Can't get first generic type argument: {:?}: {:?}", handler_name, qualifier)
+    panic!(
+        "Can't get first generic type argument: {:?}: {:?}",
+        handler_name, qualifier
+    )
 }
 
-fn get_metadata_arg(arg_iter: &mut Iter<FnArg>, package_name: &str, type_name: &str, span: Span) -> FnArg {
+fn get_metadata_arg(
+    arg_iter: &mut Iter<FnArg>,
+    package_name: &str,
+    type_name: &str,
+    span: Span,
+) -> FnArg {
     arg_iter.next().map(Clone::clone).unwrap_or_else(|| {
         let package_ident = Ident::new(package_name, span);
         let type_ident = Ident::new(type_name, span);
@@ -268,8 +332,8 @@ pub fn query_handler(_attr: TokenStream, item: TokenStream) -> TokenStream {
 
 fn impl_query_handler(ast: &ItemFn) -> TokenStream {
     // println!("AST: {:?}", ast);
-    let ItemFn{sig, block, ..} = ast;
-    let Signature {ident, inputs, ..} = sig;
+    let ItemFn { sig, block, .. } = ast;
+    let Signature { ident, inputs, .. } = sig;
 
     let ident_string = ident.to_string();
     let ident_span = ident.span();
@@ -278,8 +342,10 @@ fn impl_query_handler(ast: &ItemFn) -> TokenStream {
     let ident_impl = Ident::new(&format!("{}_impl", ident_string), ident_span);
 
     let mut arg_iter = inputs.iter();
-    let (event_arg_name, event_type) = split_argument(arg_iter.next().unwrap(), &ident_string, "event");
-    let (query_model_arg_name, query_model_type) = split_argument(arg_iter.next().unwrap(), &ident_string, "query model");
+    let (event_arg_name, event_type) =
+        split_argument(arg_iter.next().unwrap(), &ident_string, "event");
+    let (query_model_arg_name, query_model_type) =
+        split_argument(arg_iter.next().unwrap(), &ident_string, "query model");
     let metadata_arg = get_metadata_arg(&mut arg_iter, "query", "QueryRequest", ident_span);
 
     let event_type_ident = get_type_ident(event_type, &ident_string, "event");
