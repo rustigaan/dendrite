@@ -7,7 +7,7 @@ use anyhow::Result;
 use dendrite_lib::axon_utils::TokenStore;
 use log::{debug, warn};
 use mongodb::bson::{doc, Bson, Document};
-use mongodb::options::{ClientOptions, UpdateOptions};
+use mongodb::options::{ClientOptions, ReplaceOptions};
 use mongodb::{Client, Collection, Database};
 use std::time;
 use tokio::time::sleep;
@@ -75,12 +75,12 @@ impl TokenStore for MongoQueryModel {
     async fn store_token(&self, token: i64) {
         let identifier = &self.identifier;
         let hex_token = format!("{:x}", token);
-        let mut options = UpdateOptions::default();
+        let mut options = ReplaceOptions::default();
         options.upsert = Some(true);
         let result = self
             .database
             .collection::<Document>("tracking-token")
-            .update_one(
+            .replace_one(
                 doc! {"_id": identifier},
                 doc! {"_id": identifier, "token": hex_token},
                 Some(options),
