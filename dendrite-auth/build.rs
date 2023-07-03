@@ -1,3 +1,5 @@
+use std::process::Command;
+
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     tonic_build::configure()
         .out_dir("src")
@@ -6,7 +8,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             &[
                 "proto/auth.proto"
             ],
-            &["proto"]
+            &["proto"],
         )?;
+    Command::new("rustfmt").output().ok();
     Ok(())
 }
