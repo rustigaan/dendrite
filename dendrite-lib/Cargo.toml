@@ -11,6 +11,7 @@ license = "MIT"
 keywords = ["event-sourcing", "CQRS", "AxonServer"]
 categories = ["web-programming"]
 include = ["/src/**/*", "/proto/**/*", "/Cargo.*", "/build.rs", "/README.md", "/LICENSE"]
+build = "build.rs"
 
 [dependencies]
 anyhow = "^1.0"
@@ -27,7 +28,7 @@ mockall = "^0.11"
 prost = "^0.11"
 regex = "^1.5"
 serde = { version = "~1", features = ["derive"] }
-tokio = { version = "^1.0", features = ["macros","time","signal"] }
+tokio = { version = "^1.0", features = ["macros", "time", "signal"] }
 tonic = "^0.8"
 tower = "^0.4"
 uuid = { version = "^1.2", features = ["v4"] }

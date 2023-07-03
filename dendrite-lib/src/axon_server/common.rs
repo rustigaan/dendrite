@@ -119,8 +119,19 @@ pub struct InstructionResult {
     pub error: ::core::option::Option<ErrorMessage>,
 }
 /// An enumeration of possible keys for processing instructions.
-#[derive(serde::Serialize, serde::Deserialize)]
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
+#[derive(
+    serde::Serialize,
+    serde::Deserialize,
+    Clone,
+    Copy,
+    Debug,
+    PartialEq,
+    Eq,
+    Hash,
+    PartialOrd,
+    Ord,
+    ::prost::Enumeration,
+)]
 #[repr(i32)]
 pub enum ProcessingKey {
     /// key indicating that the attached value should be used for consistent routing.
@@ -157,8 +168,19 @@ impl ProcessingKey {
     }
 }
 /// Defines status values for a scheduled task
-#[derive(serde::Serialize, serde::Deserialize)]
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
+#[derive(
+    serde::Serialize,
+    serde::Deserialize,
+    Clone,
+    Copy,
+    Debug,
+    PartialEq,
+    Eq,
+    Hash,
+    PartialOrd,
+    Ord,
+    ::prost::Enumeration,
+)]
 #[repr(i32)]
 pub enum TaskStatus {
     /// Task is scheduled for execution

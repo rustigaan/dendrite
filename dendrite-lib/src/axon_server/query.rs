@@ -7,7 +7,10 @@ pub struct QueryProviderOutbound {
     #[prost(string, tag = "8")]
     pub instruction_id: ::prost::alloc::string::String,
     /// The actual instruction to send
-    #[prost(oneof = "query_provider_outbound::Request", tags = "1, 2, 3, 4, 5, 6, 7")]
+    #[prost(
+        oneof = "query_provider_outbound::Request",
+        tags = "1, 2, 3, 4, 5, 6, 7"
+    )]
     pub request: ::core::option::Option<query_provider_outbound::Request>,
 }
 /// Nested message and enum types in `QueryProviderOutbound`.
@@ -101,18 +104,14 @@ pub struct QueryRequest {
     pub payload: ::core::option::Option<super::common::SerializedObject>,
     /// Meta Data providing contextual information of the Query
     #[prost(map = "string, message", tag = "5")]
-    pub meta_data: ::std::collections::HashMap<
-        ::prost::alloc::string::String,
-        super::common::MetaDataValue,
-    >,
+    pub meta_data:
+        ::std::collections::HashMap<::prost::alloc::string::String, super::common::MetaDataValue>,
     /// An object describing the expectations of the Response Type
     #[prost(message, optional, tag = "6")]
     pub response_type: ::core::option::Option<super::common::SerializedObject>,
     /// Any instructions for components Routing or Handling the Query
     #[prost(message, repeated, tag = "7")]
-    pub processing_instructions: ::prost::alloc::vec::Vec<
-        super::common::ProcessingInstruction,
-    >,
+    pub processing_instructions: ::prost::alloc::vec::Vec<super::common::ProcessingInstruction>,
     /// The unique identifier of the client instance dispatching the query
     #[prost(string, tag = "8")]
     pub client_id: ::prost::alloc::string::String,
@@ -139,15 +138,11 @@ pub struct QueryResponse {
     pub payload: ::core::option::Option<super::common::SerializedObject>,
     /// Any Meta Data describing the context of the Response Message
     #[prost(map = "string, message", tag = "5")]
-    pub meta_data: ::std::collections::HashMap<
-        ::prost::alloc::string::String,
-        super::common::MetaDataValue,
-    >,
+    pub meta_data:
+        ::std::collections::HashMap<::prost::alloc::string::String, super::common::MetaDataValue>,
     /// Any instructions for components Routing or Handling the Response Message
     #[prost(message, repeated, tag = "6")]
-    pub processing_instructions: ::prost::alloc::vec::Vec<
-        super::common::ProcessingInstruction,
-    >,
+    pub processing_instructions: ::prost::alloc::vec::Vec<super::common::ProcessingInstruction>,
     /// The unique identifier of the Query to which this is a response
     #[prost(string, tag = "7")]
     pub request_identifier: ::prost::alloc::string::String,
@@ -183,10 +178,8 @@ pub struct QueryUpdate {
     pub payload: ::core::option::Option<super::common::SerializedObject>,
     /// Meta Data providing contextual information of the Update
     #[prost(map = "string, message", tag = "4")]
-    pub meta_data: ::std::collections::HashMap<
-        ::prost::alloc::string::String,
-        super::common::MetaDataValue,
-    >,
+    pub meta_data:
+        ::std::collections::HashMap<::prost::alloc::string::String, super::common::MetaDataValue>,
     /// The identifier of the Client instance providing the Update
     #[prost(string, tag = "5")]
     pub client_id: ::prost::alloc::string::String,
@@ -332,8 +325,8 @@ pub struct QuerySubscription {
 /// Generated client implementations.
 pub mod query_service_client {
     #![allow(unused_variables, dead_code, missing_docs, clippy::let_unit_value)]
-    use tonic::codegen::*;
     use tonic::codegen::http::Uri;
+    use tonic::codegen::*;
     /// Service providing operations for the Query Messaging component of AxonServer
     #[derive(Debug, Clone)]
     pub struct QueryServiceClient<T> {
@@ -378,9 +371,8 @@ pub mod query_service_client {
                     <T as tonic::client::GrpcService<tonic::body::BoxBody>>::ResponseBody,
                 >,
             >,
-            <T as tonic::codegen::Service<
-                http::Request<tonic::body::BoxBody>,
-            >>::Error: Into<StdError> + Send + Sync,
+            <T as tonic::codegen::Service<http::Request<tonic::body::BoxBody>>>::Error:
+                Into<StdError> + Send + Sync,
         {
             QueryServiceClient::new(InterceptedService::new(inner, interceptor))
         }
@@ -402,75 +394,66 @@ pub mod query_service_client {
         /// Opens a Query- and Instruction stream to AxonServer.
         pub async fn open_stream(
             &mut self,
-            request: impl tonic::IntoStreamingRequest<
-                Message = super::QueryProviderOutbound,
-            >,
+            request: impl tonic::IntoStreamingRequest<Message = super::QueryProviderOutbound>,
         ) -> Result<
             tonic::Response<tonic::codec::Streaming<super::QueryProviderInbound>>,
             tonic::Status,
         > {
-            self.inner
-                .ready()
-                .await
-                .map_err(|e| {
-                    tonic::Status::new(
-                        tonic::Code::Unknown,
-                        format!("Service was not ready: {}", e.into()),
-                    )
-                })?;
+            self.inner.ready().await.map_err(|e| {
+                tonic::Status::new(
+                    tonic::Code::Unknown,
+                    format!("Service was not ready: {}", e.into()),
+                )
+            })?;
             let codec = tonic::codec::ProstCodec::default();
             let path = http::uri::PathAndQuery::from_static(
                 "/io.axoniq.axonserver.grpc.query.QueryService/OpenStream",
             );
-            self.inner.streaming(request.into_streaming_request(), path, codec).await
+            self.inner
+                .streaming(request.into_streaming_request(), path, codec)
+                .await
         }
         /// Sends a point-to-point or scatter-gather Query
         pub async fn query(
             &mut self,
             request: impl tonic::IntoRequest<super::QueryRequest>,
-        ) -> Result<
-            tonic::Response<tonic::codec::Streaming<super::QueryResponse>>,
-            tonic::Status,
-        > {
-            self.inner
-                .ready()
-                .await
-                .map_err(|e| {
-                    tonic::Status::new(
-                        tonic::Code::Unknown,
-                        format!("Service was not ready: {}", e.into()),
-                    )
-                })?;
+        ) -> Result<tonic::Response<tonic::codec::Streaming<super::QueryResponse>>, tonic::Status>
+        {
+            self.inner.ready().await.map_err(|e| {
+                tonic::Status::new(
+                    tonic::Code::Unknown,
+                    format!("Service was not ready: {}", e.into()),
+                )
+            })?;
             let codec = tonic::codec::ProstCodec::default();
             let path = http::uri::PathAndQuery::from_static(
                 "/io.axoniq.axonserver.grpc.query.QueryService/Query",
             );
-            self.inner.server_streaming(request.into_request(), path, codec).await
+            self.inner
+                .server_streaming(request.into_request(), path, codec)
+                .await
         }
         /// Opens a Subscription Query
         pub async fn subscription(
             &mut self,
-            request: impl tonic::IntoStreamingRequest<
-                Message = super::SubscriptionQueryRequest,
-            >,
+            request: impl tonic::IntoStreamingRequest<Message = super::SubscriptionQueryRequest>,
         ) -> Result<
             tonic::Response<tonic::codec::Streaming<super::SubscriptionQueryResponse>>,
             tonic::Status,
         > {
-            self.inner
-                .ready()
-                .await
-                .map_err(|e| {
-                    tonic::Status::new(
-                        tonic::Code::Unknown,
-                        format!("Service was not ready: {}", e.into()),
-                    )
-                })?;
+            self.inner.ready().await.map_err(|e| {
+                tonic::Status::new(
+                    tonic::Code::Unknown,
+                    format!("Service was not ready: {}", e.into()),
+                )
+            })?;
             let codec = tonic::codec::ProstCodec::default();
             let path = http::uri::PathAndQuery::from_static(
                 "/io.axoniq.axonserver.grpc.query.QueryService/Subscription",
             );
-            self.inner.streaming(request.into_streaming_request(), path, codec).await
+            self.inner
+                .streaming(request.into_streaming_request(), path, codec)
+                .await
         }
     }
 }
@@ -482,9 +465,7 @@ pub mod query_service_server {
     #[async_trait]
     pub trait QueryService: Send + Sync + 'static {
         /// Server streaming response type for the OpenStream method.
-        type OpenStreamStream: futures_core::Stream<
-                Item = Result<super::QueryProviderInbound, tonic::Status>,
-            >
+        type OpenStreamStream: futures_core::Stream<Item = Result<super::QueryProviderInbound, tonic::Status>>
             + Send
             + 'static;
         /// Opens a Query- and Instruction stream to AxonServer.
@@ -493,9 +474,7 @@ pub mod query_service_server {
             request: tonic::Request<tonic::Streaming<super::QueryProviderOutbound>>,
         ) -> Result<tonic::Response<Self::OpenStreamStream>, tonic::Status>;
         /// Server streaming response type for the Query method.
-        type QueryStream: futures_core::Stream<
-                Item = Result<super::QueryResponse, tonic::Status>,
-            >
+        type QueryStream: futures_core::Stream<Item = Result<super::QueryResponse, tonic::Status>>
             + Send
             + 'static;
         /// Sends a point-to-point or scatter-gather Query
@@ -504,9 +483,7 @@ pub mod query_service_server {
             request: tonic::Request<super::QueryRequest>,
         ) -> Result<tonic::Response<Self::QueryStream>, tonic::Status>;
         /// Server streaming response type for the Subscription method.
-        type SubscriptionStream: futures_core::Stream<
-                Item = Result<super::SubscriptionQueryResponse, tonic::Status>,
-            >
+        type SubscriptionStream: futures_core::Stream<Item = Result<super::SubscriptionQueryResponse, tonic::Status>>
             + Send
             + 'static;
         /// Opens a Subscription Query
@@ -535,10 +512,7 @@ pub mod query_service_server {
                 send_compression_encodings: Default::default(),
             }
         }
-        pub fn with_interceptor<F>(
-            inner: T,
-            interceptor: F,
-        ) -> InterceptedService<Self, F>
+        pub fn with_interceptor<F>(inner: T, interceptor: F) -> InterceptedService<Self, F>
         where
             F: tonic::service::Interceptor,
         {
@@ -566,10 +540,7 @@ pub mod query_service_server {
         type Response = http::Response<tonic::body::BoxBody>;
         type Error = std::convert::Infallible;
         type Future = BoxFuture<Self::Response, Self::Error>;
-        fn poll_ready(
-            &mut self,
-            _cx: &mut Context<'_>,
-        ) -> Poll<Result<(), Self::Error>> {
+        fn poll_ready(&mut self, _cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
             Poll::Ready(Ok(()))
         }
         fn call(&mut self, req: http::Request<B>) -> Self::Future {
@@ -578,21 +549,17 @@ pub mod query_service_server {
                 "/io.axoniq.axonserver.grpc.query.QueryService/OpenStream" => {
                     #[allow(non_camel_case_types)]
                     struct OpenStreamSvc<T: QueryService>(pub Arc<T>);
-                    impl<
-                        T: QueryService,
-                    > tonic::server::StreamingService<super::QueryProviderOutbound>
-                    for OpenStreamSvc<T> {
+                    impl<T: QueryService>
+                        tonic::server::StreamingService<super::QueryProviderOutbound>
+                        for OpenStreamSvc<T>
+                    {
                         type Response = super::QueryProviderInbound;
                         type ResponseStream = T::OpenStreamStream;
-                        type Future = BoxFuture<
-                            tonic::Response<Self::ResponseStream>,
-                            tonic::Status,
-                        >;
+                        type Future =
+                            BoxFuture<tonic::Response<Self::ResponseStream>, tonic::Status>;
                         fn call(
                             &mut self,
-                            request: tonic::Request<
-                                tonic::Streaming<super::QueryProviderOutbound>,
-                            >,
+                            request: tonic::Request<tonic::Streaming<super::QueryProviderOutbound>>,
                         ) -> Self::Future {
                             let inner = self.0.clone();
                             let fut = async move { (*inner).open_stream(request).await };
@@ -606,11 +573,10 @@ pub mod query_service_server {
                         let inner = inner.0;
                         let method = OpenStreamSvc(inner);
                         let codec = tonic::codec::ProstCodec::default();
-                        let mut grpc = tonic::server::Grpc::new(codec)
-                            .apply_compression_config(
-                                accept_compression_encodings,
-                                send_compression_encodings,
-                            );
+                        let mut grpc = tonic::server::Grpc::new(codec).apply_compression_config(
+                            accept_compression_encodings,
+                            send_compression_encodings,
+                        );
                         let res = grpc.streaming(method, req).await;
                         Ok(res)
                     };
@@ -619,16 +585,11 @@ pub mod query_service_server {
                 "/io.axoniq.axonserver.grpc.query.QueryService/Query" => {
                     #[allow(non_camel_case_types)]
                     struct QuerySvc<T: QueryService>(pub Arc<T>);
-                    impl<
-                        T: QueryService,
-                    > tonic::server::ServerStreamingService<super::QueryRequest>
-                    for QuerySvc<T> {
+                    impl<T: QueryService> tonic::server::ServerStreamingService<super::QueryRequest> for QuerySvc<T> {
                         type Response = super::QueryResponse;
                         type ResponseStream = T::QueryStream;
-                        type Future = BoxFuture<
-                            tonic::Response<Self::ResponseStream>,
-                            tonic::Status,
-                        >;
+                        type Future =
+                            BoxFuture<tonic::Response<Self::ResponseStream>, tonic::Status>;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::QueryRequest>,
@@ -645,11 +606,10 @@ pub mod query_service_server {
                         let inner = inner.0;
                         let method = QuerySvc(inner);
                         let codec = tonic::codec::ProstCodec::default();
-                        let mut grpc = tonic::server::Grpc::new(codec)
-                            .apply_compression_config(
-                                accept_compression_encodings,
-                                send_compression_encodings,
-                            );
+                        let mut grpc = tonic::server::Grpc::new(codec).apply_compression_config(
+                            accept_compression_encodings,
+                            send_compression_encodings,
+                        );
                         let res = grpc.server_streaming(method, req).await;
                         Ok(res)
                     };
@@ -658,16 +618,14 @@ pub mod query_service_server {
                 "/io.axoniq.axonserver.grpc.query.QueryService/Subscription" => {
                     #[allow(non_camel_case_types)]
                     struct SubscriptionSvc<T: QueryService>(pub Arc<T>);
-                    impl<
-                        T: QueryService,
-                    > tonic::server::StreamingService<super::SubscriptionQueryRequest>
-                    for SubscriptionSvc<T> {
+                    impl<T: QueryService>
+                        tonic::server::StreamingService<super::SubscriptionQueryRequest>
+                        for SubscriptionSvc<T>
+                    {
                         type Response = super::SubscriptionQueryResponse;
                         type ResponseStream = T::SubscriptionStream;
-                        type Future = BoxFuture<
-                            tonic::Response<Self::ResponseStream>,
-                            tonic::Status,
-                        >;
+                        type Future =
+                            BoxFuture<tonic::Response<Self::ResponseStream>, tonic::Status>;
                         fn call(
                             &mut self,
                             request: tonic::Request<
@@ -675,9 +633,7 @@ pub mod query_service_server {
                             >,
                         ) -> Self::Future {
                             let inner = self.0.clone();
-                            let fut = async move {
-                                (*inner).subscription(request).await
-                            };
+                            let fut = async move { (*inner).subscription(request).await };
                             Box::pin(fut)
                         }
                     }
@@ -688,28 +644,23 @@ pub mod query_service_server {
                         let inner = inner.0;
                         let method = SubscriptionSvc(inner);
                         let codec = tonic::codec::ProstCodec::default();
-                        let mut grpc = tonic::server::Grpc::new(codec)
-                            .apply_compression_config(
-                                accept_compression_encodings,
-                                send_compression_encodings,
-                            );
+                        let mut grpc = tonic::server::Grpc::new(codec).apply_compression_config(
+                            accept_compression_encodings,
+                            send_compression_encodings,
+                        );
                         let res = grpc.streaming(method, req).await;
                         Ok(res)
                     };
                     Box::pin(fut)
                 }
-                _ => {
-                    Box::pin(async move {
-                        Ok(
-                            http::Response::builder()
-                                .status(200)
-                                .header("grpc-status", "12")
-                                .header("content-type", "application/grpc")
-                                .body(empty_body())
-                                .unwrap(),
-                        )
-                    })
-                }
+                _ => Box::pin(async move {
+                    Ok(http::Response::builder()
+                        .status(200)
+                        .header("grpc-status", "12")
+                        .header("content-type", "application/grpc")
+                        .body(empty_body())
+                        .unwrap())
+                }),
             }
         }
     }

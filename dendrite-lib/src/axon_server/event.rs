@@ -283,10 +283,8 @@ pub struct Event {
     pub payload: ::core::option::Option<super::common::SerializedObject>,
     /// The Meta Data of the Event
     #[prost(map = "string, message", tag = "7")]
-    pub meta_data: ::std::collections::HashMap<
-        ::prost::alloc::string::String,
-        super::common::MetaDataValue,
-    >,
+    pub meta_data:
+        ::std::collections::HashMap<::prost::alloc::string::String, super::common::MetaDataValue>,
     /// Flag indicating whether the Event is a snapshot Event
     #[prost(bool, tag = "8")]
     pub snapshot: bool,
@@ -336,8 +334,8 @@ pub struct PayloadDescription {
 /// Generated client implementations.
 pub mod event_store_client {
     #![allow(unused_variables, dead_code, missing_docs, clippy::let_unit_value)]
-    use tonic::codegen::*;
     use tonic::codegen::http::Uri;
+    use tonic::codegen::*;
     /// Service providing operations against the EventStore functionality of Axon Server
     #[derive(Debug, Clone)]
     pub struct EventStoreClient<T> {
@@ -382,9 +380,8 @@ pub mod event_store_client {
                     <T as tonic::client::GrpcService<tonic::body::BoxBody>>::ResponseBody,
                 >,
             >,
-            <T as tonic::codegen::Service<
-                http::Request<tonic::body::BoxBody>,
-            >>::Error: Into<StdError> + Send + Sync,
+            <T as tonic::codegen::Service<http::Request<tonic::body::BoxBody>>>::Error:
+                Into<StdError> + Send + Sync,
         {
             EventStoreClient::new(InterceptedService::new(inner, interceptor))
         }
@@ -408,15 +405,12 @@ pub mod event_store_client {
             &mut self,
             request: impl tonic::IntoStreamingRequest<Message = super::Event>,
         ) -> Result<tonic::Response<super::Confirmation>, tonic::Status> {
-            self.inner
-                .ready()
-                .await
-                .map_err(|e| {
-                    tonic::Status::new(
-                        tonic::Code::Unknown,
-                        format!("Service was not ready: {}", e.into()),
-                    )
-                })?;
+            self.inner.ready().await.map_err(|e| {
+                tonic::Status::new(
+                    tonic::Code::Unknown,
+                    format!("Service was not ready: {}", e.into()),
+                )
+            })?;
             let codec = tonic::codec::ProstCodec::default();
             let path = http::uri::PathAndQuery::from_static(
                 "/io.axoniq.axonserver.grpc.event.EventStore/AppendEvent",
@@ -430,15 +424,12 @@ pub mod event_store_client {
             &mut self,
             request: impl tonic::IntoRequest<super::Event>,
         ) -> Result<tonic::Response<super::Confirmation>, tonic::Status> {
-            self.inner
-                .ready()
-                .await
-                .map_err(|e| {
-                    tonic::Status::new(
-                        tonic::Code::Unknown,
-                        format!("Service was not ready: {}", e.into()),
-                    )
-                })?;
+            self.inner.ready().await.map_err(|e| {
+                tonic::Status::new(
+                    tonic::Code::Unknown,
+                    format!("Service was not ready: {}", e.into()),
+                )
+            })?;
             let codec = tonic::codec::ProstCodec::default();
             let path = http::uri::PathAndQuery::from_static(
                 "/io.axoniq.axonserver.grpc.event.EventStore/AppendSnapshot",
@@ -449,47 +440,39 @@ pub mod event_store_client {
         pub async fn list_aggregate_events(
             &mut self,
             request: impl tonic::IntoRequest<super::GetAggregateEventsRequest>,
-        ) -> Result<
-            tonic::Response<tonic::codec::Streaming<super::Event>>,
-            tonic::Status,
-        > {
-            self.inner
-                .ready()
-                .await
-                .map_err(|e| {
-                    tonic::Status::new(
-                        tonic::Code::Unknown,
-                        format!("Service was not ready: {}", e.into()),
-                    )
-                })?;
+        ) -> Result<tonic::Response<tonic::codec::Streaming<super::Event>>, tonic::Status> {
+            self.inner.ready().await.map_err(|e| {
+                tonic::Status::new(
+                    tonic::Code::Unknown,
+                    format!("Service was not ready: {}", e.into()),
+                )
+            })?;
             let codec = tonic::codec::ProstCodec::default();
             let path = http::uri::PathAndQuery::from_static(
                 "/io.axoniq.axonserver.grpc.event.EventStore/ListAggregateEvents",
             );
-            self.inner.server_streaming(request.into_request(), path, codec).await
+            self.inner
+                .server_streaming(request.into_request(), path, codec)
+                .await
         }
         /// Retrieves the Snapshots for a given aggregate. Results are streamed rather than returned at once.
         pub async fn list_aggregate_snapshots(
             &mut self,
             request: impl tonic::IntoRequest<super::GetAggregateSnapshotsRequest>,
-        ) -> Result<
-            tonic::Response<tonic::codec::Streaming<super::Event>>,
-            tonic::Status,
-        > {
-            self.inner
-                .ready()
-                .await
-                .map_err(|e| {
-                    tonic::Status::new(
-                        tonic::Code::Unknown,
-                        format!("Service was not ready: {}", e.into()),
-                    )
-                })?;
+        ) -> Result<tonic::Response<tonic::codec::Streaming<super::Event>>, tonic::Status> {
+            self.inner.ready().await.map_err(|e| {
+                tonic::Status::new(
+                    tonic::Code::Unknown,
+                    format!("Service was not ready: {}", e.into()),
+                )
+            })?;
             let codec = tonic::codec::ProstCodec::default();
             let path = http::uri::PathAndQuery::from_static(
                 "/io.axoniq.axonserver.grpc.event.EventStore/ListAggregateSnapshots",
             );
-            self.inner.server_streaming(request.into_request(), path, codec).await
+            self.inner
+                .server_streaming(request.into_request(), path, codec)
+                .await
         }
         /// Retrieves the Events from a given tracking token. However, if several GetEventsRequests are sent in the stream
         /// only first one will create the tracker, others are used for increasing number of permits or blacklisting. Results
@@ -497,42 +480,33 @@ pub mod event_store_client {
         pub async fn list_events(
             &mut self,
             request: impl tonic::IntoStreamingRequest<Message = super::GetEventsRequest>,
-        ) -> Result<
-            tonic::Response<tonic::codec::Streaming<super::EventWithToken>>,
-            tonic::Status,
-        > {
-            self.inner
-                .ready()
-                .await
-                .map_err(|e| {
-                    tonic::Status::new(
-                        tonic::Code::Unknown,
-                        format!("Service was not ready: {}", e.into()),
-                    )
-                })?;
+        ) -> Result<tonic::Response<tonic::codec::Streaming<super::EventWithToken>>, tonic::Status>
+        {
+            self.inner.ready().await.map_err(|e| {
+                tonic::Status::new(
+                    tonic::Code::Unknown,
+                    format!("Service was not ready: {}", e.into()),
+                )
+            })?;
             let codec = tonic::codec::ProstCodec::default();
             let path = http::uri::PathAndQuery::from_static(
                 "/io.axoniq.axonserver.grpc.event.EventStore/ListEvents",
             );
-            self.inner.streaming(request.into_streaming_request(), path, codec).await
+            self.inner
+                .streaming(request.into_streaming_request(), path, codec)
+                .await
         }
         /// Gets the highest sequence number for a specific aggregate.
         pub async fn read_highest_sequence_nr(
             &mut self,
             request: impl tonic::IntoRequest<super::ReadHighestSequenceNrRequest>,
-        ) -> Result<
-            tonic::Response<super::ReadHighestSequenceNrResponse>,
-            tonic::Status,
-        > {
-            self.inner
-                .ready()
-                .await
-                .map_err(|e| {
-                    tonic::Status::new(
-                        tonic::Code::Unknown,
-                        format!("Service was not ready: {}", e.into()),
-                    )
-                })?;
+        ) -> Result<tonic::Response<super::ReadHighestSequenceNrResponse>, tonic::Status> {
+            self.inner.ready().await.map_err(|e| {
+                tonic::Status::new(
+                    tonic::Code::Unknown,
+                    format!("Service was not ready: {}", e.into()),
+                )
+            })?;
             let codec = tonic::codec::ProstCodec::default();
             let path = http::uri::PathAndQuery::from_static(
                 "/io.axoniq.axonserver.grpc.event.EventStore/ReadHighestSequenceNr",
@@ -543,42 +517,36 @@ pub mod event_store_client {
         /// client
         pub async fn query_events(
             &mut self,
-            request: impl tonic::IntoStreamingRequest<
-                Message = super::QueryEventsRequest,
-            >,
+            request: impl tonic::IntoStreamingRequest<Message = super::QueryEventsRequest>,
         ) -> Result<
             tonic::Response<tonic::codec::Streaming<super::QueryEventsResponse>>,
             tonic::Status,
         > {
-            self.inner
-                .ready()
-                .await
-                .map_err(|e| {
-                    tonic::Status::new(
-                        tonic::Code::Unknown,
-                        format!("Service was not ready: {}", e.into()),
-                    )
-                })?;
+            self.inner.ready().await.map_err(|e| {
+                tonic::Status::new(
+                    tonic::Code::Unknown,
+                    format!("Service was not ready: {}", e.into()),
+                )
+            })?;
             let codec = tonic::codec::ProstCodec::default();
             let path = http::uri::PathAndQuery::from_static(
                 "/io.axoniq.axonserver.grpc.event.EventStore/QueryEvents",
             );
-            self.inner.streaming(request.into_streaming_request(), path, codec).await
+            self.inner
+                .streaming(request.into_streaming_request(), path, codec)
+                .await
         }
         /// Retrieves the first token available in event store (typically 0). Returns 0 when no events in store.
         pub async fn get_first_token(
             &mut self,
             request: impl tonic::IntoRequest<super::GetFirstTokenRequest>,
         ) -> Result<tonic::Response<super::TrackingToken>, tonic::Status> {
-            self.inner
-                .ready()
-                .await
-                .map_err(|e| {
-                    tonic::Status::new(
-                        tonic::Code::Unknown,
-                        format!("Service was not ready: {}", e.into()),
-                    )
-                })?;
+            self.inner.ready().await.map_err(|e| {
+                tonic::Status::new(
+                    tonic::Code::Unknown,
+                    format!("Service was not ready: {}", e.into()),
+                )
+            })?;
             let codec = tonic::codec::ProstCodec::default();
             let path = http::uri::PathAndQuery::from_static(
                 "/io.axoniq.axonserver.grpc.event.EventStore/GetFirstToken",
@@ -590,15 +558,12 @@ pub mod event_store_client {
             &mut self,
             request: impl tonic::IntoRequest<super::GetLastTokenRequest>,
         ) -> Result<tonic::Response<super::TrackingToken>, tonic::Status> {
-            self.inner
-                .ready()
-                .await
-                .map_err(|e| {
-                    tonic::Status::new(
-                        tonic::Code::Unknown,
-                        format!("Service was not ready: {}", e.into()),
-                    )
-                })?;
+            self.inner.ready().await.map_err(|e| {
+                tonic::Status::new(
+                    tonic::Code::Unknown,
+                    format!("Service was not ready: {}", e.into()),
+                )
+            })?;
             let codec = tonic::codec::ProstCodec::default();
             let path = http::uri::PathAndQuery::from_static(
                 "/io.axoniq.axonserver.grpc.event.EventStore/GetLastToken",
@@ -610,15 +575,12 @@ pub mod event_store_client {
             &mut self,
             request: impl tonic::IntoRequest<super::GetTokenAtRequest>,
         ) -> Result<tonic::Response<super::TrackingToken>, tonic::Status> {
-            self.inner
-                .ready()
-                .await
-                .map_err(|e| {
-                    tonic::Status::new(
-                        tonic::Code::Unknown,
-                        format!("Service was not ready: {}", e.into()),
-                    )
-                })?;
+            self.inner.ready().await.map_err(|e| {
+                tonic::Status::new(
+                    tonic::Code::Unknown,
+                    format!("Service was not ready: {}", e.into()),
+                )
+            })?;
             let codec = tonic::codec::ProstCodec::default();
             let path = http::uri::PathAndQuery::from_static(
                 "/io.axoniq.axonserver.grpc.event.EventStore/GetTokenAt",
@@ -630,8 +592,8 @@ pub mod event_store_client {
 /// Generated client implementations.
 pub mod event_scheduler_client {
     #![allow(unused_variables, dead_code, missing_docs, clippy::let_unit_value)]
-    use tonic::codegen::*;
     use tonic::codegen::http::Uri;
+    use tonic::codegen::*;
     /// Service to use AxonServer as a provider of an EventScheduler
     #[derive(Debug, Clone)]
     pub struct EventSchedulerClient<T> {
@@ -676,9 +638,8 @@ pub mod event_scheduler_client {
                     <T as tonic::client::GrpcService<tonic::body::BoxBody>>::ResponseBody,
                 >,
             >,
-            <T as tonic::codegen::Service<
-                http::Request<tonic::body::BoxBody>,
-            >>::Error: Into<StdError> + Send + Sync,
+            <T as tonic::codegen::Service<http::Request<tonic::body::BoxBody>>>::Error:
+                Into<StdError> + Send + Sync,
         {
             EventSchedulerClient::new(InterceptedService::new(inner, interceptor))
         }
@@ -702,15 +663,12 @@ pub mod event_scheduler_client {
             &mut self,
             request: impl tonic::IntoRequest<super::ScheduleEventRequest>,
         ) -> Result<tonic::Response<super::ScheduleToken>, tonic::Status> {
-            self.inner
-                .ready()
-                .await
-                .map_err(|e| {
-                    tonic::Status::new(
-                        tonic::Code::Unknown,
-                        format!("Service was not ready: {}", e.into()),
-                    )
-                })?;
+            self.inner.ready().await.map_err(|e| {
+                tonic::Status::new(
+                    tonic::Code::Unknown,
+                    format!("Service was not ready: {}", e.into()),
+                )
+            })?;
             let codec = tonic::codec::ProstCodec::default();
             let path = http::uri::PathAndQuery::from_static(
                 "/io.axoniq.axonserver.grpc.event.EventScheduler/ScheduleEvent",
@@ -722,15 +680,12 @@ pub mod event_scheduler_client {
             &mut self,
             request: impl tonic::IntoRequest<super::RescheduleEventRequest>,
         ) -> Result<tonic::Response<super::ScheduleToken>, tonic::Status> {
-            self.inner
-                .ready()
-                .await
-                .map_err(|e| {
-                    tonic::Status::new(
-                        tonic::Code::Unknown,
-                        format!("Service was not ready: {}", e.into()),
-                    )
-                })?;
+            self.inner.ready().await.map_err(|e| {
+                tonic::Status::new(
+                    tonic::Code::Unknown,
+                    format!("Service was not ready: {}", e.into()),
+                )
+            })?;
             let codec = tonic::codec::ProstCodec::default();
             let path = http::uri::PathAndQuery::from_static(
                 "/io.axoniq.axonserver.grpc.event.EventScheduler/RescheduleEvent",
@@ -741,19 +696,13 @@ pub mod event_scheduler_client {
         pub async fn cancel_scheduled_event(
             &mut self,
             request: impl tonic::IntoRequest<super::CancelScheduledEventRequest>,
-        ) -> Result<
-            tonic::Response<super::super::common::InstructionAck>,
-            tonic::Status,
-        > {
-            self.inner
-                .ready()
-                .await
-                .map_err(|e| {
-                    tonic::Status::new(
-                        tonic::Code::Unknown,
-                        format!("Service was not ready: {}", e.into()),
-                    )
-                })?;
+        ) -> Result<tonic::Response<super::super::common::InstructionAck>, tonic::Status> {
+            self.inner.ready().await.map_err(|e| {
+                tonic::Status::new(
+                    tonic::Code::Unknown,
+                    format!("Service was not ready: {}", e.into()),
+                )
+            })?;
             let codec = tonic::codec::ProstCodec::default();
             let path = http::uri::PathAndQuery::from_static(
                 "/io.axoniq.axonserver.grpc.event.EventScheduler/CancelScheduledEvent",
@@ -780,9 +729,7 @@ pub mod event_store_server {
             request: tonic::Request<super::Event>,
         ) -> Result<tonic::Response<super::Confirmation>, tonic::Status>;
         /// Server streaming response type for the ListAggregateEvents method.
-        type ListAggregateEventsStream: futures_core::Stream<
-                Item = Result<super::Event, tonic::Status>,
-            >
+        type ListAggregateEventsStream: futures_core::Stream<Item = Result<super::Event, tonic::Status>>
             + Send
             + 'static;
         /// Retrieves the Events for a given aggregate. Results are streamed rather than returned at once.
@@ -791,9 +738,7 @@ pub mod event_store_server {
             request: tonic::Request<super::GetAggregateEventsRequest>,
         ) -> Result<tonic::Response<Self::ListAggregateEventsStream>, tonic::Status>;
         /// Server streaming response type for the ListAggregateSnapshots method.
-        type ListAggregateSnapshotsStream: futures_core::Stream<
-                Item = Result<super::Event, tonic::Status>,
-            >
+        type ListAggregateSnapshotsStream: futures_core::Stream<Item = Result<super::Event, tonic::Status>>
             + Send
             + 'static;
         /// Retrieves the Snapshots for a given aggregate. Results are streamed rather than returned at once.
@@ -802,9 +747,7 @@ pub mod event_store_server {
             request: tonic::Request<super::GetAggregateSnapshotsRequest>,
         ) -> Result<tonic::Response<Self::ListAggregateSnapshotsStream>, tonic::Status>;
         /// Server streaming response type for the ListEvents method.
-        type ListEventsStream: futures_core::Stream<
-                Item = Result<super::EventWithToken, tonic::Status>,
-            >
+        type ListEventsStream: futures_core::Stream<Item = Result<super::EventWithToken, tonic::Status>>
             + Send
             + 'static;
         /// Retrieves the Events from a given tracking token. However, if several GetEventsRequests are sent in the stream
@@ -818,14 +761,9 @@ pub mod event_store_server {
         async fn read_highest_sequence_nr(
             &self,
             request: tonic::Request<super::ReadHighestSequenceNrRequest>,
-        ) -> Result<
-            tonic::Response<super::ReadHighestSequenceNrResponse>,
-            tonic::Status,
-        >;
+        ) -> Result<tonic::Response<super::ReadHighestSequenceNrResponse>, tonic::Status>;
         /// Server streaming response type for the QueryEvents method.
-        type QueryEventsStream: futures_core::Stream<
-                Item = Result<super::QueryEventsResponse, tonic::Status>,
-            >
+        type QueryEventsStream: futures_core::Stream<Item = Result<super::QueryEventsResponse, tonic::Status>>
             + Send
             + 'static;
         /// Performs a query on the event store, returns a stream of results. Input is a stream to allow flow control from the
@@ -870,10 +808,7 @@ pub mod event_store_server {
                 send_compression_encodings: Default::default(),
             }
         }
-        pub fn with_interceptor<F>(
-            inner: T,
-            interceptor: F,
-        ) -> InterceptedService<Self, F>
+        pub fn with_interceptor<F>(inner: T, interceptor: F) -> InterceptedService<Self, F>
         where
             F: tonic::service::Interceptor,
         {
@@ -901,10 +836,7 @@ pub mod event_store_server {
         type Response = http::Response<tonic::body::BoxBody>;
         type Error = std::convert::Infallible;
         type Future = BoxFuture<Self::Response, Self::Error>;
-        fn poll_ready(
-            &mut self,
-            _cx: &mut Context<'_>,
-        ) -> Poll<Result<(), Self::Error>> {
+        fn poll_ready(&mut self, _cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
             Poll::Ready(Ok(()))
         }
         fn call(&mut self, req: http::Request<B>) -> Self::Future {
@@ -913,23 +845,15 @@ pub mod event_store_server {
                 "/io.axoniq.axonserver.grpc.event.EventStore/AppendEvent" => {
                     #[allow(non_camel_case_types)]
                     struct AppendEventSvc<T: EventStore>(pub Arc<T>);
-                    impl<
-                        T: EventStore,
-                    > tonic::server::ClientStreamingService<super::Event>
-                    for AppendEventSvc<T> {
+                    impl<T: EventStore> tonic::server::ClientStreamingService<super::Event> for AppendEventSvc<T> {
                         type Response = super::Confirmation;
-                        type Future = BoxFuture<
-                            tonic::Response<Self::Response>,
-                            tonic::Status,
-                        >;
+                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
                         fn call(
                             &mut self,
                             request: tonic::Request<tonic::Streaming<super::Event>>,
                         ) -> Self::Future {
                             let inner = self.0.clone();
-                            let fut = async move {
-                                (*inner).append_event(request).await
-                            };
+                            let fut = async move { (*inner).append_event(request).await };
                             Box::pin(fut)
                         }
                     }
@@ -940,11 +864,10 @@ pub mod event_store_server {
                         let inner = inner.0;
                         let method = AppendEventSvc(inner);
                         let codec = tonic::codec::ProstCodec::default();
-                        let mut grpc = tonic::server::Grpc::new(codec)
-                            .apply_compression_config(
-                                accept_compression_encodings,
-                                send_compression_encodings,
-                            );
+                        let mut grpc = tonic::server::Grpc::new(codec).apply_compression_config(
+                            accept_compression_encodings,
+                            send_compression_encodings,
+                        );
                         let res = grpc.client_streaming(method, req).await;
                         Ok(res)
                     };
@@ -953,21 +876,12 @@ pub mod event_store_server {
                 "/io.axoniq.axonserver.grpc.event.EventStore/AppendSnapshot" => {
                     #[allow(non_camel_case_types)]
                     struct AppendSnapshotSvc<T: EventStore>(pub Arc<T>);
-                    impl<T: EventStore> tonic::server::UnaryService<super::Event>
-                    for AppendSnapshotSvc<T> {
+                    impl<T: EventStore> tonic::server::UnaryService<super::Event> for AppendSnapshotSvc<T> {
                         type Response = super::Confirmation;
-                        type Future = BoxFuture<
-                            tonic::Response<Self::Response>,
-                            tonic::Status,
-                        >;
-                        fn call(
-                            &mut self,
-                            request: tonic::Request<super::Event>,
-                        ) -> Self::Future {
+                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        fn call(&mut self, request: tonic::Request<super::Event>) -> Self::Future {
                             let inner = self.0.clone();
-                            let fut = async move {
-                                (*inner).append_snapshot(request).await
-                            };
+                            let fut = async move { (*inner).append_snapshot(request).await };
                             Box::pin(fut)
                         }
                     }
@@ -978,11 +892,10 @@ pub mod event_store_server {
                         let inner = inner.0;
                         let method = AppendSnapshotSvc(inner);
                         let codec = tonic::codec::ProstCodec::default();
-                        let mut grpc = tonic::server::Grpc::new(codec)
-                            .apply_compression_config(
-                                accept_compression_encodings,
-                                send_compression_encodings,
-                            );
+                        let mut grpc = tonic::server::Grpc::new(codec).apply_compression_config(
+                            accept_compression_encodings,
+                            send_compression_encodings,
+                        );
                         let res = grpc.unary(method, req).await;
                         Ok(res)
                     };
@@ -991,25 +904,20 @@ pub mod event_store_server {
                 "/io.axoniq.axonserver.grpc.event.EventStore/ListAggregateEvents" => {
                     #[allow(non_camel_case_types)]
                     struct ListAggregateEventsSvc<T: EventStore>(pub Arc<T>);
-                    impl<
-                        T: EventStore,
-                    > tonic::server::ServerStreamingService<
-                        super::GetAggregateEventsRequest,
-                    > for ListAggregateEventsSvc<T> {
+                    impl<T: EventStore>
+                        tonic::server::ServerStreamingService<super::GetAggregateEventsRequest>
+                        for ListAggregateEventsSvc<T>
+                    {
                         type Response = super::Event;
                         type ResponseStream = T::ListAggregateEventsStream;
-                        type Future = BoxFuture<
-                            tonic::Response<Self::ResponseStream>,
-                            tonic::Status,
-                        >;
+                        type Future =
+                            BoxFuture<tonic::Response<Self::ResponseStream>, tonic::Status>;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::GetAggregateEventsRequest>,
                         ) -> Self::Future {
                             let inner = self.0.clone();
-                            let fut = async move {
-                                (*inner).list_aggregate_events(request).await
-                            };
+                            let fut = async move { (*inner).list_aggregate_events(request).await };
                             Box::pin(fut)
                         }
                     }
@@ -1020,11 +928,10 @@ pub mod event_store_server {
                         let inner = inner.0;
                         let method = ListAggregateEventsSvc(inner);
                         let codec = tonic::codec::ProstCodec::default();
-                        let mut grpc = tonic::server::Grpc::new(codec)
-                            .apply_compression_config(
-                                accept_compression_encodings,
-                                send_compression_encodings,
-                            );
+                        let mut grpc = tonic::server::Grpc::new(codec).apply_compression_config(
+                            accept_compression_encodings,
+                            send_compression_encodings,
+                        );
                         let res = grpc.server_streaming(method, req).await;
                         Ok(res)
                     };
@@ -1033,25 +940,21 @@ pub mod event_store_server {
                 "/io.axoniq.axonserver.grpc.event.EventStore/ListAggregateSnapshots" => {
                     #[allow(non_camel_case_types)]
                     struct ListAggregateSnapshotsSvc<T: EventStore>(pub Arc<T>);
-                    impl<
-                        T: EventStore,
-                    > tonic::server::ServerStreamingService<
-                        super::GetAggregateSnapshotsRequest,
-                    > for ListAggregateSnapshotsSvc<T> {
+                    impl<T: EventStore>
+                        tonic::server::ServerStreamingService<super::GetAggregateSnapshotsRequest>
+                        for ListAggregateSnapshotsSvc<T>
+                    {
                         type Response = super::Event;
                         type ResponseStream = T::ListAggregateSnapshotsStream;
-                        type Future = BoxFuture<
-                            tonic::Response<Self::ResponseStream>,
-                            tonic::Status,
-                        >;
+                        type Future =
+                            BoxFuture<tonic::Response<Self::ResponseStream>, tonic::Status>;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::GetAggregateSnapshotsRequest>,
                         ) -> Self::Future {
                             let inner = self.0.clone();
-                            let fut = async move {
-                                (*inner).list_aggregate_snapshots(request).await
-                            };
+                            let fut =
+                                async move { (*inner).list_aggregate_snapshots(request).await };
                             Box::pin(fut)
                         }
                     }
@@ -1062,11 +965,10 @@ pub mod event_store_server {
                         let inner = inner.0;
                         let method = ListAggregateSnapshotsSvc(inner);
                         let codec = tonic::codec::ProstCodec::default();
-                        let mut grpc = tonic::server::Grpc::new(codec)
-                            .apply_compression_config(
-                                accept_compression_encodings,
-                                send_compression_encodings,
-                            );
+                        let mut grpc = tonic::server::Grpc::new(codec).apply_compression_config(
+                            accept_compression_encodings,
+                            send_compression_encodings,
+                        );
                         let res = grpc.server_streaming(method, req).await;
                         Ok(res)
                     };
@@ -1075,21 +977,14 @@ pub mod event_store_server {
                 "/io.axoniq.axonserver.grpc.event.EventStore/ListEvents" => {
                     #[allow(non_camel_case_types)]
                     struct ListEventsSvc<T: EventStore>(pub Arc<T>);
-                    impl<
-                        T: EventStore,
-                    > tonic::server::StreamingService<super::GetEventsRequest>
-                    for ListEventsSvc<T> {
+                    impl<T: EventStore> tonic::server::StreamingService<super::GetEventsRequest> for ListEventsSvc<T> {
                         type Response = super::EventWithToken;
                         type ResponseStream = T::ListEventsStream;
-                        type Future = BoxFuture<
-                            tonic::Response<Self::ResponseStream>,
-                            tonic::Status,
-                        >;
+                        type Future =
+                            BoxFuture<tonic::Response<Self::ResponseStream>, tonic::Status>;
                         fn call(
                             &mut self,
-                            request: tonic::Request<
-                                tonic::Streaming<super::GetEventsRequest>,
-                            >,
+                            request: tonic::Request<tonic::Streaming<super::GetEventsRequest>>,
                         ) -> Self::Future {
                             let inner = self.0.clone();
                             let fut = async move { (*inner).list_events(request).await };
@@ -1103,11 +998,10 @@ pub mod event_store_server {
                         let inner = inner.0;
                         let method = ListEventsSvc(inner);
                         let codec = tonic::codec::ProstCodec::default();
-                        let mut grpc = tonic::server::Grpc::new(codec)
-                            .apply_compression_config(
-                                accept_compression_encodings,
-                                send_compression_encodings,
-                            );
+                        let mut grpc = tonic::server::Grpc::new(codec).apply_compression_config(
+                            accept_compression_encodings,
+                            send_compression_encodings,
+                        );
                         let res = grpc.streaming(method, req).await;
                         Ok(res)
                     };
@@ -1116,23 +1010,19 @@ pub mod event_store_server {
                 "/io.axoniq.axonserver.grpc.event.EventStore/ReadHighestSequenceNr" => {
                     #[allow(non_camel_case_types)]
                     struct ReadHighestSequenceNrSvc<T: EventStore>(pub Arc<T>);
-                    impl<
-                        T: EventStore,
-                    > tonic::server::UnaryService<super::ReadHighestSequenceNrRequest>
-                    for ReadHighestSequenceNrSvc<T> {
+                    impl<T: EventStore>
+                        tonic::server::UnaryService<super::ReadHighestSequenceNrRequest>
+                        for ReadHighestSequenceNrSvc<T>
+                    {
                         type Response = super::ReadHighestSequenceNrResponse;
-                        type Future = BoxFuture<
-                            tonic::Response<Self::Response>,
-                            tonic::Status,
-                        >;
+                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::ReadHighestSequenceNrRequest>,
                         ) -> Self::Future {
                             let inner = self.0.clone();
-                            let fut = async move {
-                                (*inner).read_highest_sequence_nr(request).await
-                            };
+                            let fut =
+                                async move { (*inner).read_highest_sequence_nr(request).await };
                             Box::pin(fut)
                         }
                     }
@@ -1143,11 +1033,10 @@ pub mod event_store_server {
                         let inner = inner.0;
                         let method = ReadHighestSequenceNrSvc(inner);
                         let codec = tonic::codec::ProstCodec::default();
-                        let mut grpc = tonic::server::Grpc::new(codec)
-                            .apply_compression_config(
-                                accept_compression_encodings,
-                                send_compression_encodings,
-                            );
+                        let mut grpc = tonic::server::Grpc::new(codec).apply_compression_config(
+                            accept_compression_encodings,
+                            send_compression_encodings,
+                        );
                         let res = grpc.unary(method, req).await;
                         Ok(res)
                     };
@@ -1156,26 +1045,19 @@ pub mod event_store_server {
                 "/io.axoniq.axonserver.grpc.event.EventStore/QueryEvents" => {
                     #[allow(non_camel_case_types)]
                     struct QueryEventsSvc<T: EventStore>(pub Arc<T>);
-                    impl<
-                        T: EventStore,
-                    > tonic::server::StreamingService<super::QueryEventsRequest>
-                    for QueryEventsSvc<T> {
+                    impl<T: EventStore> tonic::server::StreamingService<super::QueryEventsRequest>
+                        for QueryEventsSvc<T>
+                    {
                         type Response = super::QueryEventsResponse;
                         type ResponseStream = T::QueryEventsStream;
-                        type Future = BoxFuture<
-                            tonic::Response<Self::ResponseStream>,
-                            tonic::Status,
-                        >;
+                        type Future =
+                            BoxFuture<tonic::Response<Self::ResponseStream>, tonic::Status>;
                         fn call(
                             &mut self,
-                            request: tonic::Request<
-                                tonic::Streaming<super::QueryEventsRequest>,
-                            >,
+                            request: tonic::Request<tonic::Streaming<super::QueryEventsRequest>>,
                         ) -> Self::Future {
                             let inner = self.0.clone();
-                            let fut = async move {
-                                (*inner).query_events(request).await
-                            };
+                            let fut = async move { (*inner).query_events(request).await };
                             Box::pin(fut)
                         }
                     }
@@ -1186,11 +1068,10 @@ pub mod event_store_server {
                         let inner = inner.0;
                         let method = QueryEventsSvc(inner);
                         let codec = tonic::codec::ProstCodec::default();
-                        let mut grpc = tonic::server::Grpc::new(codec)
-                            .apply_compression_config(
-                                accept_compression_encodings,
-                                send_compression_encodings,
-                            );
+                        let mut grpc = tonic::server::Grpc::new(codec).apply_compression_config(
+                            accept_compression_encodings,
+                            send_compression_encodings,
+                        );
                         let res = grpc.streaming(method, req).await;
                         Ok(res)
                     };
@@ -1199,23 +1080,17 @@ pub mod event_store_server {
                 "/io.axoniq.axonserver.grpc.event.EventStore/GetFirstToken" => {
                     #[allow(non_camel_case_types)]
                     struct GetFirstTokenSvc<T: EventStore>(pub Arc<T>);
-                    impl<
-                        T: EventStore,
-                    > tonic::server::UnaryService<super::GetFirstTokenRequest>
-                    for GetFirstTokenSvc<T> {
+                    impl<T: EventStore> tonic::server::UnaryService<super::GetFirstTokenRequest>
+                        for GetFirstTokenSvc<T>
+                    {
                         type Response = super::TrackingToken;
-                        type Future = BoxFuture<
-                            tonic::Response<Self::Response>,
-                            tonic::Status,
-                        >;
+                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::GetFirstTokenRequest>,
                         ) -> Self::Future {
                             let inner = self.0.clone();
-                            let fut = async move {
-                                (*inner).get_first_token(request).await
-                            };
+                            let fut = async move { (*inner).get_first_token(request).await };
                             Box::pin(fut)
                         }
                     }
@@ -1226,11 +1101,10 @@ pub mod event_store_server {
                         let inner = inner.0;
                         let method = GetFirstTokenSvc(inner);
                         let codec = tonic::codec::ProstCodec::default();
-                        let mut grpc = tonic::server::Grpc::new(codec)
-                            .apply_compression_config(
-                                accept_compression_encodings,
-                                send_compression_encodings,
-                            );
+                        let mut grpc = tonic::server::Grpc::new(codec).apply_compression_config(
+                            accept_compression_encodings,
+                            send_compression_encodings,
+                        );
                         let res = grpc.unary(method, req).await;
                         Ok(res)
                     };
@@ -1239,23 +1113,15 @@ pub mod event_store_server {
                 "/io.axoniq.axonserver.grpc.event.EventStore/GetLastToken" => {
                     #[allow(non_camel_case_types)]
                     struct GetLastTokenSvc<T: EventStore>(pub Arc<T>);
-                    impl<
-                        T: EventStore,
-                    > tonic::server::UnaryService<super::GetLastTokenRequest>
-                    for GetLastTokenSvc<T> {
+                    impl<T: EventStore> tonic::server::UnaryService<super::GetLastTokenRequest> for GetLastTokenSvc<T> {
                         type Response = super::TrackingToken;
-                        type Future = BoxFuture<
-                            tonic::Response<Self::Response>,
-                            tonic::Status,
-                        >;
+                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::GetLastTokenRequest>,
                         ) -> Self::Future {
                             let inner = self.0.clone();
-                            let fut = async move {
-                                (*inner).get_last_token(request).await
-                            };
+                            let fut = async move { (*inner).get_last_token(request).await };
                             Box::pin(fut)
                         }
                     }
@@ -1266,11 +1132,10 @@ pub mod event_store_server {
                         let inner = inner.0;
                         let method = GetLastTokenSvc(inner);
                         let codec = tonic::codec::ProstCodec::default();
-                        let mut grpc = tonic::server::Grpc::new(codec)
-                            .apply_compression_config(
-                                accept_compression_encodings,
-                                send_compression_encodings,
-                            );
+                        let mut grpc = tonic::server::Grpc::new(codec).apply_compression_config(
+                            accept_compression_encodings,
+                            send_compression_encodings,
+                        );
                         let res = grpc.unary(method, req).await;
                         Ok(res)
                     };
@@ -1279,23 +1144,15 @@ pub mod event_store_server {
                 "/io.axoniq.axonserver.grpc.event.EventStore/GetTokenAt" => {
                     #[allow(non_camel_case_types)]
                     struct GetTokenAtSvc<T: EventStore>(pub Arc<T>);
-                    impl<
-                        T: EventStore,
-                    > tonic::server::UnaryService<super::GetTokenAtRequest>
-                    for GetTokenAtSvc<T> {
+                    impl<T: EventStore> tonic::server::UnaryService<super::GetTokenAtRequest> for GetTokenAtSvc<T> {
                         type Response = super::TrackingToken;
-                        type Future = BoxFuture<
-                            tonic::Response<Self::Response>,
-                            tonic::Status,
-                        >;
+                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::GetTokenAtRequest>,
                         ) -> Self::Future {
                             let inner = self.0.clone();
-                            let fut = async move {
-                                (*inner).get_token_at(request).await
-                            };
+                            let fut = async move { (*inner).get_token_at(request).await };
                             Box::pin(fut)
                         }
                     }
@@ -1306,28 +1163,23 @@ pub mod event_store_server {
                         let inner = inner.0;
                         let method = GetTokenAtSvc(inner);
                         let codec = tonic::codec::ProstCodec::default();
-                        let mut grpc = tonic::server::Grpc::new(codec)
-                            .apply_compression_config(
-                                accept_compression_encodings,
-                                send_compression_encodings,
-                            );
+                        let mut grpc = tonic::server::Grpc::new(codec).apply_compression_config(
+                            accept_compression_encodings,
+                            send_compression_encodings,
+                        );
                         let res = grpc.unary(method, req).await;
                         Ok(res)
                     };
                     Box::pin(fut)
                 }
-                _ => {
-                    Box::pin(async move {
-                        Ok(
-                            http::Response::builder()
-                                .status(200)
-                                .header("grpc-status", "12")
-                                .header("content-type", "application/grpc")
-                                .body(empty_body())
-                                .unwrap(),
-                        )
-                    })
-                }
+                _ => Box::pin(async move {
+                    Ok(http::Response::builder()
+                        .status(200)
+                        .header("grpc-status", "12")
+                        .header("content-type", "application/grpc")
+                        .body(empty_body())
+                        .unwrap())
+                }),
             }
         }
     }
@@ -1376,10 +1228,7 @@ pub mod event_scheduler_server {
         async fn cancel_scheduled_event(
             &self,
             request: tonic::Request<super::CancelScheduledEventRequest>,
-        ) -> Result<
-            tonic::Response<super::super::common::InstructionAck>,
-            tonic::Status,
-        >;
+        ) -> Result<tonic::Response<super::super::common::InstructionAck>, tonic::Status>;
     }
     /// Service to use AxonServer as a provider of an EventScheduler
     #[derive(Debug)]
@@ -1401,10 +1250,7 @@ pub mod event_scheduler_server {
                 send_compression_encodings: Default::default(),
             }
         }
-        pub fn with_interceptor<F>(
-            inner: T,
-            interceptor: F,
-        ) -> InterceptedService<Self, F>
+        pub fn with_interceptor<F>(inner: T, interceptor: F) -> InterceptedService<Self, F>
         where
             F: tonic::service::Interceptor,
         {
@@ -1432,10 +1278,7 @@ pub mod event_scheduler_server {
         type Response = http::Response<tonic::body::BoxBody>;
         type Error = std::convert::Infallible;
         type Future = BoxFuture<Self::Response, Self::Error>;
-        fn poll_ready(
-            &mut self,
-            _cx: &mut Context<'_>,
-        ) -> Poll<Result<(), Self::Error>> {
+        fn poll_ready(&mut self, _cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
             Poll::Ready(Ok(()))
         }
         fn call(&mut self, req: http::Request<B>) -> Self::Future {
@@ -1444,23 +1287,17 @@ pub mod event_scheduler_server {
                 "/io.axoniq.axonserver.grpc.event.EventScheduler/ScheduleEvent" => {
                     #[allow(non_camel_case_types)]
                     struct ScheduleEventSvc<T: EventScheduler>(pub Arc<T>);
-                    impl<
-                        T: EventScheduler,
-                    > tonic::server::UnaryService<super::ScheduleEventRequest>
-                    for ScheduleEventSvc<T> {
+                    impl<T: EventScheduler> tonic::server::UnaryService<super::ScheduleEventRequest>
+                        for ScheduleEventSvc<T>
+                    {
                         type Response = super::ScheduleToken;
-                        type Future = BoxFuture<
-                            tonic::Response<Self::Response>,
-                            tonic::Status,
-                        >;
+                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::ScheduleEventRequest>,
                         ) -> Self::Future {
                             let inner = self.0.clone();
-                            let fut = async move {
-                                (*inner).schedule_event(request).await
-                            };
+                            let fut = async move { (*inner).schedule_event(request).await };
                             Box::pin(fut)
                         }
                     }
@@ -1471,11 +1308,10 @@ pub mod event_scheduler_server {
                         let inner = inner.0;
                         let method = ScheduleEventSvc(inner);
                         let codec = tonic::codec::ProstCodec::default();
-                        let mut grpc = tonic::server::Grpc::new(codec)
-                            .apply_compression_config(
-                                accept_compression_encodings,
-                                send_compression_encodings,
-                            );
+                        let mut grpc = tonic::server::Grpc::new(codec).apply_compression_config(
+                            accept_compression_encodings,
+                            send_compression_encodings,
+                        );
                         let res = grpc.unary(method, req).await;
                         Ok(res)
                     };
@@ -1484,23 +1320,18 @@ pub mod event_scheduler_server {
                 "/io.axoniq.axonserver.grpc.event.EventScheduler/RescheduleEvent" => {
                     #[allow(non_camel_case_types)]
                     struct RescheduleEventSvc<T: EventScheduler>(pub Arc<T>);
-                    impl<
-                        T: EventScheduler,
-                    > tonic::server::UnaryService<super::RescheduleEventRequest>
-                    for RescheduleEventSvc<T> {
+                    impl<T: EventScheduler>
+                        tonic::server::UnaryService<super::RescheduleEventRequest>
+                        for RescheduleEventSvc<T>
+                    {
                         type Response = super::ScheduleToken;
-                        type Future = BoxFuture<
-                            tonic::Response<Self::Response>,
-                            tonic::Status,
-                        >;
+                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::RescheduleEventRequest>,
                         ) -> Self::Future {
                             let inner = self.0.clone();
-                            let fut = async move {
-                                (*inner).reschedule_event(request).await
-                            };
+                            let fut = async move { (*inner).reschedule_event(request).await };
                             Box::pin(fut)
                         }
                     }
@@ -1511,11 +1342,10 @@ pub mod event_scheduler_server {
                         let inner = inner.0;
                         let method = RescheduleEventSvc(inner);
                         let codec = tonic::codec::ProstCodec::default();
-                        let mut grpc = tonic::server::Grpc::new(codec)
-                            .apply_compression_config(
-                                accept_compression_encodings,
-                                send_compression_encodings,
-                            );
+                        let mut grpc = tonic::server::Grpc::new(codec).apply_compression_config(
+                            accept_compression_encodings,
+                            send_compression_encodings,
+                        );
                         let res = grpc.unary(method, req).await;
                         Ok(res)
                     };
@@ -1524,23 +1354,18 @@ pub mod event_scheduler_server {
                 "/io.axoniq.axonserver.grpc.event.EventScheduler/CancelScheduledEvent" => {
                     #[allow(non_camel_case_types)]
                     struct CancelScheduledEventSvc<T: EventScheduler>(pub Arc<T>);
-                    impl<
-                        T: EventScheduler,
-                    > tonic::server::UnaryService<super::CancelScheduledEventRequest>
-                    for CancelScheduledEventSvc<T> {
+                    impl<T: EventScheduler>
+                        tonic::server::UnaryService<super::CancelScheduledEventRequest>
+                        for CancelScheduledEventSvc<T>
+                    {
                         type Response = super::super::common::InstructionAck;
-                        type Future = BoxFuture<
-                            tonic::Response<Self::Response>,
-                            tonic::Status,
-                        >;
+                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::CancelScheduledEventRequest>,
                         ) -> Self::Future {
                             let inner = self.0.clone();
-                            let fut = async move {
-                                (*inner).cancel_scheduled_event(request).await
-                            };
+                            let fut = async move { (*inner).cancel_scheduled_event(request).await };
                             Box::pin(fut)
                         }
                     }
@@ -1551,28 +1376,23 @@ pub mod event_scheduler_server {
                         let inner = inner.0;
                         let method = CancelScheduledEventSvc(inner);
                         let codec = tonic::codec::ProstCodec::default();
-                        let mut grpc = tonic::server::Grpc::new(codec)
-                            .apply_compression_config(
-                                accept_compression_encodings,
-                                send_compression_encodings,
-                            );
+                        let mut grpc = tonic::server::Grpc::new(codec).apply_compression_config(
+                            accept_compression_encodings,
+                            send_compression_encodings,
+                        );
                         let res = grpc.unary(method, req).await;
                         Ok(res)
                     };
                     Box::pin(fut)
                 }
-                _ => {
-                    Box::pin(async move {
-                        Ok(
-                            http::Response::builder()
-                                .status(200)
-                                .header("grpc-status", "12")
-                                .header("content-type", "application/grpc")
-                                .body(empty_body())
-                                .unwrap(),
-                        )
-                    })
-                }
+                _ => Box::pin(async move {
+                    Ok(http::Response::builder()
+                        .status(200)
+                        .header("grpc-status", "12")
+                        .header("content-type", "application/grpc")
+                        .body(empty_body())
+                        .unwrap())
+                }),
             }
         }
     }

@@ -12,23 +12,22 @@
 //! * Query API — _accepts queries on a gRPC API and forwards them (again over gRPC to AxonServer)_
 //! * Query processor — _subscribes to queries, executes them against a query model and pass back the results_
 
-use std::collections::HashMap;
-use std::fmt::{Debug, Formatter};
-use crate::intellij_work_around::Debuggable;
 use anyhow::{anyhow, Result};
-use async_channel::{Sender,Receiver,bounded};
+use async_channel::{bounded, Receiver, Sender};
+use futures_util::FutureExt;
+use futures_util::TryFutureExt;
 use log::{debug, error, info};
 use prost::Message;
+use std::collections::HashMap;
+use std::fmt::{Debug, Formatter};
 use std::future::Future;
 use std::pin::Pin;
 use std::sync::{Arc, Mutex};
-use futures_util::TryFutureExt;
-use futures_util::FutureExt;
 use tokio::select;
 use tokio::signal::unix::Signal;
 use tokio::task::JoinHandle;
-use tonic::{Response, Status};
 use tonic::transport::Channel;
+use tonic::{Response, Status};
 use uuid::Uuid;
 
 mod command_submit;
@@ -41,9 +40,10 @@ mod query_processor;
 mod query_submit;
 
 use crate::axon_server::command::command_service_client::CommandServiceClient;
-use crate::axon_server::command::{Command,CommandResponse};
+use crate::axon_server::command::{Command, CommandResponse};
 pub use crate::axon_server::SerializedObject;
 use crate::axon_utils::handler_registry::PinFuture;
+use crate::axon_utils::WorkerCommand::Unsubscribe;
 pub use command_submit::init as init_command_sender;
 pub use command_submit::SubmitCommand;
 pub use command_worker::command_worker;
@@ -58,10 +58,9 @@ pub use event_query::query_events;
 pub use handler_registry::empty_handler_registry;
 pub use handler_registry::{HandleBuilder, HandlerRegistry, TheHandlerRegistry};
 pub use query_processor::{query_processor, QueryContext, QueryResult};
-use crate::axon_utils::WorkerCommand::Unsubscribe;
 
 struct WorkerRegistry {
-    workers: HashMap<Uuid,WorkerHandle>,
+    workers: HashMap<Uuid, WorkerHandle>,
     notifications: Receiver<Uuid>,
 }
 
@@ -103,10 +102,16 @@ impl AxonServerHandle {
 
     async fn get_stopped_worker(&self) -> Result<Uuid> {
         let stopped_worker_receiver = self.get_stopped_worker_receiver()?;
-        stopped_worker_receiver.recv().await.map_err(|e| anyhow!(e.to_string()))
+        stopped_worker_receiver
+            .recv()
+            .await
+            .map_err(|e| anyhow!(e.to_string()))
     }
 
-    async fn get_stopped_worker_with_signal(&self, signal_option: &mut Option<Signal>) -> Result<Uuid> {
+    async fn get_stopped_worker_with_signal(
+        &self,
+        signal_option: &mut Option<Signal>,
+    ) -> Result<Uuid> {
         match signal_option {
             Some(signal) => {
                 let stopped_worker_receiver = self.get_stopped_worker_receiver()?;
@@ -114,8 +119,8 @@ impl AxonServerHandle {
                     id = stopped_worker_receiver.recv() => id.map_err(|e| anyhow!(e.to_string())),
                     _ = signal.recv() => Ok(Uuid::new_v4())
                 }
-            },
-            None => self.get_stopped_worker().await
+            }
+            None => self.get_stopped_worker().await,
         }
     }
 
@@ -126,7 +131,7 @@ impl AxonServerHandle {
     }
 }
 
-#[derive(Eq,PartialEq)]
+#[derive(Eq, PartialEq)]
 pub enum WorkerCommand {
     Unsubscribe,
     Stop,
@@ -134,7 +139,7 @@ pub enum WorkerCommand {
 
 pub struct WorkerHandle {
     id: Uuid,
-    join_handle: Option<Pin<Box<dyn Future<Output=Result<()>> + Send>>>,
+    join_handle: Option<Pin<Box<dyn Future<Output = Result<()>> + Send>>>,
     control_channel: Sender<WorkerCommand>,
     label: String,
 }
@@ -157,7 +162,9 @@ impl WorkerHandle {
     pub fn get_id(&self) -> Uuid {
         self.id
     }
-    pub fn get_join_handle(&mut self) -> &mut Option<Pin<Box<dyn Future<Output=Result<()>> + Send>>> {
+    pub fn get_join_handle(
+        &mut self,
+    ) -> &mut Option<Pin<Box<dyn Future<Output = Result<()>> + Send>>> {
         &mut self.join_handle
     }
     pub fn get_control_channel(&self) -> &Sender<WorkerCommand> {
@@ -177,9 +184,13 @@ impl Debug for WorkerHandle {
 }
 
 impl AxonServerHandle {
-    pub fn spawn_ref<T, S: Into<String>>(&self, label: S, task: &'static (dyn Fn(AxonServerHandle, WorkerControl) -> T)) -> Result<()>
+    pub fn spawn_ref<T, S: Into<String>>(
+        &self,
+        label: S,
+        task: &'static (dyn Fn(AxonServerHandle, WorkerControl) -> T),
+    ) -> Result<()>
     where
-        T: Future<Output=()> + Send + 'static
+        T: Future<Output = ()> + Send + 'static,
     {
         let label = label.into();
         let notify = self.notify.clone();
@@ -192,14 +203,21 @@ impl AxonServerHandle {
         let worker_future = (Box::new(task))((*self).clone(), worker_control);
         let join_handle = spawn_worker(worker_future, notify, id).map_err(Into::into);
         let handle = WorkerHandle {
-            id, join_handle: Some(Box::pin(join_handle)), control_channel: tx, label
+            id,
+            join_handle: Some(Box::pin(join_handle)),
+            control_channel: tx,
+            label,
         };
         let mut registry = self.registry.lock();
         let registry = registry.as_mut().map_err(|e| anyhow!(e.to_string()))?;
         registry.workers.insert(id, handle);
         Ok(())
     }
-    pub fn spawn<S: Into<String>>(&self, label: S, task: Box<dyn FnOnce(AxonServerHandle, WorkerControl) -> PinFuture<()>>) -> Result<Uuid> {
+    pub fn spawn<S: Into<String>>(
+        &self,
+        label: S,
+        task: Box<dyn FnOnce(AxonServerHandle, WorkerControl) -> PinFuture<()>>,
+    ) -> Result<Uuid> {
         let label = label.into();
         let notify = self.notify.clone();
         let id = Uuid::new_v4();
@@ -211,7 +229,10 @@ impl AxonServerHandle {
         let worker_future = (task)((*self).clone(), worker_control);
         let join_handle = spawn_worker(worker_future, notify, id).map_err(Into::into);
         let handle = WorkerHandle {
-            id, join_handle: Some(Box::pin(join_handle)), control_channel: tx, label
+            id,
+            join_handle: Some(Box::pin(join_handle)),
+            control_channel: tx,
+            label,
         };
         let mut registry = self.registry.lock();
         let registry = registry.as_mut().map_err(|e| anyhow!(e.to_string()))?;
@@ -225,14 +246,16 @@ where
     T: Future + Send + 'static,
     T::Output: Send + 'static,
 {
-    tokio::spawn(future.then(move |result| {
-        async move {
-            if let Err(e) = notify.send(id.clone()).await {
-                debug!("Termination notification failed for worker: {:?}: {:?}", id.clone(), e);
-            }
-            info!("Worker stopped: {:?}", id);
-            result
+    tokio::spawn(future.then(move |result| async move {
+        if let Err(e) = notify.send(id.clone()).await {
+            debug!(
+                "Termination notification failed for worker: {:?}: {:?}",
+                id.clone(),
+                e
+            );
         }
+        info!("Worker stopped: {:?}", id);
+        result
     }))
 }
 
@@ -240,11 +263,10 @@ pub trait AxonServerHandleTrait: Sync + AxonServerHandleAsyncTrait {
     fn client_id(&self) -> &str;
     fn display_name(&self) -> &str;
 }
+
 #[tonic::async_trait]
-pub trait AxonServerHandleAsyncTrait
-{
-    async fn dispatch(&self, request: Command)
-        -> Result<Response<CommandResponse>, Status>;
+pub trait AxonServerHandleAsyncTrait {
+    async fn dispatch(&self, request: Command) -> Result<Response<CommandResponse>, Status>;
     async fn join_workers(&self) -> Result<()>;
     async fn join_workers_with_signal(&self, terminate: &mut Option<Signal>) -> Result<()>;
 }
@@ -259,10 +281,8 @@ impl AxonServerHandleTrait for AxonServerHandle {
 }
 
 #[tonic::async_trait]
-impl AxonServerHandleAsyncTrait for AxonServerHandle
-{
-    async fn dispatch(&self, request: Command) -> Result<Response<CommandResponse>, Status>
-    {
+impl AxonServerHandleAsyncTrait for AxonServerHandle {
+    async fn dispatch(&self, request: Command) -> Result<Response<CommandResponse>, Status> {
         let mut client = CommandServiceClient::new(self.conn.clone());
         client.dispatch(request).await
     }
@@ -288,8 +308,25 @@ impl AxonServerHandleAsyncTrait for AxonServerHandle
         };
         for (worker_id, sender) in senders {
             info!("{:?}: Stopping", worker_id);
-            sender.send(Unsubscribe).await.map_err(|e| {error!("Error while sending 'Unsubscribe': {:?}: {:?}", e, worker_id); ()}).ok();
-            sender.send(WorkerCommand::Stop).await.map_err(|e| {error!("Error while sending 'Stop': {:?}: {:?}", e, worker_id); ()}).ok();
+            sender
+                .send(Unsubscribe)
+                .await
+                .map_err(|e| {
+                    error!(
+                        "Error while sending 'Unsubscribe': {:?}: {:?}",
+                        e, worker_id
+                    );
+                    ()
+                })
+                .ok();
+            sender
+                .send(WorkerCommand::Stop)
+                .await
+                .map_err(|e| {
+                    error!("Error while sending 'Stop': {:?}: {:?}", e, worker_id);
+                    ()
+                })
+                .ok();
         }
         while self.has_workers()? {
             let stopped_worker = self.get_stopped_worker().await?;
@@ -349,7 +386,7 @@ pub fn axon_serialize<T: Message>(type_name: &str, message: &T) -> Result<Serial
         revision: "".to_string(),
         data: buf,
     };
-    debug!("Encoded output: {:?}", Debuggable::from(&result));
+    debug!("Encoded output: {:?}", &result);
     Ok(result)
 }
 

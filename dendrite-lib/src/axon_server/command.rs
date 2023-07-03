@@ -80,15 +80,11 @@ pub struct Command {
     pub payload: ::core::option::Option<super::common::SerializedObject>,
     /// Meta Data entries of the Command Message, providing contextual information to the recipient
     #[prost(map = "string, message", tag = "5")]
-    pub meta_data: ::std::collections::HashMap<
-        ::prost::alloc::string::String,
-        super::common::MetaDataValue,
-    >,
+    pub meta_data:
+        ::std::collections::HashMap<::prost::alloc::string::String, super::common::MetaDataValue>,
     /// Instructions for AxonServer when routing this Command Message
     #[prost(message, repeated, tag = "6")]
-    pub processing_instructions: ::prost::alloc::vec::Vec<
-        super::common::ProcessingInstruction,
-    >,
+    pub processing_instructions: ::prost::alloc::vec::Vec<super::common::ProcessingInstruction>,
     /// The unique identifier of the component dispatching this message
     #[prost(string, tag = "7")]
     pub client_id: ::prost::alloc::string::String,
@@ -115,15 +111,11 @@ pub struct CommandResponse {
     pub payload: ::core::option::Option<super::common::SerializedObject>,
     /// Any meta data entries providing contextual information back to the dispatcher
     #[prost(map = "string, message", tag = "5")]
-    pub meta_data: ::std::collections::HashMap<
-        ::prost::alloc::string::String,
-        super::common::MetaDataValue,
-    >,
+    pub meta_data:
+        ::std::collections::HashMap<::prost::alloc::string::String, super::common::MetaDataValue>,
     /// Instructions for AxonServer when routing this Command Response Message
     #[prost(message, repeated, tag = "6")]
-    pub processing_instructions: ::prost::alloc::vec::Vec<
-        super::common::ProcessingInstruction,
-    >,
+    pub processing_instructions: ::prost::alloc::vec::Vec<super::common::ProcessingInstruction>,
     /// The unique identifier of the Command Message for which this is the response
     #[prost(string, tag = "7")]
     pub request_identifier: ::prost::alloc::string::String,
@@ -155,8 +147,8 @@ pub struct CommandSubscription {
 /// Generated client implementations.
 pub mod command_service_client {
     #![allow(unused_variables, dead_code, missing_docs, clippy::let_unit_value)]
-    use tonic::codegen::*;
     use tonic::codegen::http::Uri;
+    use tonic::codegen::*;
     /// The CommandService defines the gRPC requests necessary for subscribing command handlers, and dispatching commands.
     #[derive(Debug, Clone)]
     pub struct CommandServiceClient<T> {
@@ -201,9 +193,8 @@ pub mod command_service_client {
                     <T as tonic::client::GrpcService<tonic::body::BoxBody>>::ResponseBody,
                 >,
             >,
-            <T as tonic::codegen::Service<
-                http::Request<tonic::body::BoxBody>,
-            >>::Error: Into<StdError> + Send + Sync,
+            <T as tonic::codegen::Service<http::Request<tonic::body::BoxBody>>>::Error:
+                Into<StdError> + Send + Sync,
         {
             CommandServiceClient::new(InterceptedService::new(inner, interceptor))
         }
@@ -225,42 +216,36 @@ pub mod command_service_client {
         /// Opens a stream allowing clients to register command handlers and receive commands.
         pub async fn open_stream(
             &mut self,
-            request: impl tonic::IntoStreamingRequest<
-                Message = super::CommandProviderOutbound,
-            >,
+            request: impl tonic::IntoStreamingRequest<Message = super::CommandProviderOutbound>,
         ) -> Result<
             tonic::Response<tonic::codec::Streaming<super::CommandProviderInbound>>,
             tonic::Status,
         > {
-            self.inner
-                .ready()
-                .await
-                .map_err(|e| {
-                    tonic::Status::new(
-                        tonic::Code::Unknown,
-                        format!("Service was not ready: {}", e.into()),
-                    )
-                })?;
+            self.inner.ready().await.map_err(|e| {
+                tonic::Status::new(
+                    tonic::Code::Unknown,
+                    format!("Service was not ready: {}", e.into()),
+                )
+            })?;
             let codec = tonic::codec::ProstCodec::default();
             let path = http::uri::PathAndQuery::from_static(
                 "/io.axoniq.axonserver.grpc.command.CommandService/OpenStream",
             );
-            self.inner.streaming(request.into_streaming_request(), path, codec).await
+            self.inner
+                .streaming(request.into_streaming_request(), path, codec)
+                .await
         }
         /// Dispatches the given command, returning the result of command execution
         pub async fn dispatch(
             &mut self,
             request: impl tonic::IntoRequest<super::Command>,
         ) -> Result<tonic::Response<super::CommandResponse>, tonic::Status> {
-            self.inner
-                .ready()
-                .await
-                .map_err(|e| {
-                    tonic::Status::new(
-                        tonic::Code::Unknown,
-                        format!("Service was not ready: {}", e.into()),
-                    )
-                })?;
+            self.inner.ready().await.map_err(|e| {
+                tonic::Status::new(
+                    tonic::Code::Unknown,
+                    format!("Service was not ready: {}", e.into()),
+                )
+            })?;
             let codec = tonic::codec::ProstCodec::default();
             let path = http::uri::PathAndQuery::from_static(
                 "/io.axoniq.axonserver.grpc.command.CommandService/Dispatch",
@@ -277,9 +262,7 @@ pub mod command_service_server {
     #[async_trait]
     pub trait CommandService: Send + Sync + 'static {
         /// Server streaming response type for the OpenStream method.
-        type OpenStreamStream: futures_core::Stream<
-                Item = Result<super::CommandProviderInbound, tonic::Status>,
-            >
+        type OpenStreamStream: futures_core::Stream<Item = Result<super::CommandProviderInbound, tonic::Status>>
             + Send
             + 'static;
         /// Opens a stream allowing clients to register command handlers and receive commands.
@@ -313,10 +296,7 @@ pub mod command_service_server {
                 send_compression_encodings: Default::default(),
             }
         }
-        pub fn with_interceptor<F>(
-            inner: T,
-            interceptor: F,
-        ) -> InterceptedService<Self, F>
+        pub fn with_interceptor<F>(inner: T, interceptor: F) -> InterceptedService<Self, F>
         where
             F: tonic::service::Interceptor,
         {
@@ -344,10 +324,7 @@ pub mod command_service_server {
         type Response = http::Response<tonic::body::BoxBody>;
         type Error = std::convert::Infallible;
         type Future = BoxFuture<Self::Response, Self::Error>;
-        fn poll_ready(
-            &mut self,
-            _cx: &mut Context<'_>,
-        ) -> Poll<Result<(), Self::Error>> {
+        fn poll_ready(&mut self, _cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
             Poll::Ready(Ok(()))
         }
         fn call(&mut self, req: http::Request<B>) -> Self::Future {
@@ -356,16 +333,14 @@ pub mod command_service_server {
                 "/io.axoniq.axonserver.grpc.command.CommandService/OpenStream" => {
                     #[allow(non_camel_case_types)]
                     struct OpenStreamSvc<T: CommandService>(pub Arc<T>);
-                    impl<
-                        T: CommandService,
-                    > tonic::server::StreamingService<super::CommandProviderOutbound>
-                    for OpenStreamSvc<T> {
+                    impl<T: CommandService>
+                        tonic::server::StreamingService<super::CommandProviderOutbound>
+                        for OpenStreamSvc<T>
+                    {
                         type Response = super::CommandProviderInbound;
                         type ResponseStream = T::OpenStreamStream;
-                        type Future = BoxFuture<
-                            tonic::Response<Self::ResponseStream>,
-                            tonic::Status,
-                        >;
+                        type Future =
+                            BoxFuture<tonic::Response<Self::ResponseStream>, tonic::Status>;
                         fn call(
                             &mut self,
                             request: tonic::Request<
@@ -384,11 +359,10 @@ pub mod command_service_server {
                         let inner = inner.0;
                         let method = OpenStreamSvc(inner);
                         let codec = tonic::codec::ProstCodec::default();
-                        let mut grpc = tonic::server::Grpc::new(codec)
-                            .apply_compression_config(
-                                accept_compression_encodings,
-                                send_compression_encodings,
-                            );
+                        let mut grpc = tonic::server::Grpc::new(codec).apply_compression_config(
+                            accept_compression_encodings,
+                            send_compression_encodings,
+                        );
                         let res = grpc.streaming(method, req).await;
                         Ok(res)
                     };
@@ -397,13 +371,9 @@ pub mod command_service_server {
                 "/io.axoniq.axonserver.grpc.command.CommandService/Dispatch" => {
                     #[allow(non_camel_case_types)]
                     struct DispatchSvc<T: CommandService>(pub Arc<T>);
-                    impl<T: CommandService> tonic::server::UnaryService<super::Command>
-                    for DispatchSvc<T> {
+                    impl<T: CommandService> tonic::server::UnaryService<super::Command> for DispatchSvc<T> {
                         type Response = super::CommandResponse;
-                        type Future = BoxFuture<
-                            tonic::Response<Self::Response>,
-                            tonic::Status,
-                        >;
+                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::Command>,
@@ -420,28 +390,23 @@ pub mod command_service_server {
                         let inner = inner.0;
                         let method = DispatchSvc(inner);
                         let codec = tonic::codec::ProstCodec::default();
-                        let mut grpc = tonic::server::Grpc::new(codec)
-                            .apply_compression_config(
-                                accept_compression_encodings,
-                                send_compression_encodings,
-                            );
+                        let mut grpc = tonic::server::Grpc::new(codec).apply_compression_config(
+                            accept_compression_encodings,
+                            send_compression_encodings,
+                        );
                         let res = grpc.unary(method, req).await;
                         Ok(res)
                     };
                     Box::pin(fut)
                 }
-                _ => {
-                    Box::pin(async move {
-                        Ok(
-                            http::Response::builder()
-                                .status(200)
-                                .header("grpc-status", "12")
-                                .header("content-type", "application/grpc")
-                                .body(empty_body())
-                                .unwrap(),
-                        )
-                    })
-                }
+                _ => Box::pin(async move {
+                    Ok(http::Response::builder()
+                        .status(200)
+                        .header("grpc-status", "12")
+                        .header("content-type", "application/grpc")
+                        .body(empty_body())
+                        .unwrap())
+                }),
             }
         }
     }

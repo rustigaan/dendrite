@@ -40,7 +40,10 @@ pub async fn query_processor<Q: QueryContext + Send + Sync + Clone>(
     query_handler_registry: TheHandlerRegistry<Q, QueryRequest, QueryResult>,
     worker_control: WorkerControl,
 ) -> Result<()> {
-    let WorkerControl{control_channel,label} = worker_control;
+    let WorkerControl {
+        control_channel,
+        label,
+    } = worker_control;
     debug!("Query processor: start: {:?}", &*label);
 
     let mut client = QueryServiceClient::new(axon_server_handle.conn.clone());

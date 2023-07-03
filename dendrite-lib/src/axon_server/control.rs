@@ -7,7 +7,10 @@ pub struct PlatformInboundInstruction {
     #[prost(string, tag = "5")]
     pub instruction_id: ::prost::alloc::string::String,
     /// The actual instruction to send
-    #[prost(oneof = "platform_inbound_instruction::Request", tags = "1, 2, 3, 4, 6")]
+    #[prost(
+        oneof = "platform_inbound_instruction::Request",
+        tags = "1, 2, 3, 4, 6"
+    )]
     pub request: ::core::option::Option<platform_inbound_instruction::Request>,
 }
 /// Nested message and enum types in `PlatformInboundInstruction`.
@@ -144,10 +147,8 @@ pub struct ClientIdentification {
     pub component_name: ::prost::alloc::string::String,
     /// Any tags associated with the client, which may provide hints and preferences for setting up connections
     #[prost(map = "string, string", tag = "3")]
-    pub tags: ::std::collections::HashMap<
-        ::prost::alloc::string::String,
-        ::prost::alloc::string::String,
-    >,
+    pub tags:
+        ::std::collections::HashMap<::prost::alloc::string::String, ::prost::alloc::string::String>,
     /// Axon framework version used by the client application instance
     #[prost(string, tag = "4")]
     pub version: ::prost::alloc::string::String,
@@ -239,8 +240,8 @@ pub struct Heartbeat {}
 /// Generated client implementations.
 pub mod platform_service_client {
     #![allow(unused_variables, dead_code, missing_docs, clippy::let_unit_value)]
-    use tonic::codegen::*;
     use tonic::codegen::http::Uri;
+    use tonic::codegen::*;
     /// Service describing operations for connecting to the AxonServer platform.
     ///
     /// Clients are expected to use this service on any of the Platform's Admin nodes to obtain connection information of the
@@ -289,9 +290,8 @@ pub mod platform_service_client {
                     <T as tonic::client::GrpcService<tonic::body::BoxBody>>::ResponseBody,
                 >,
             >,
-            <T as tonic::codegen::Service<
-                http::Request<tonic::body::BoxBody>,
-            >>::Error: Into<StdError> + Send + Sync,
+            <T as tonic::codegen::Service<http::Request<tonic::body::BoxBody>>>::Error:
+                Into<StdError> + Send + Sync,
         {
             PlatformServiceClient::new(InterceptedService::new(inner, interceptor))
         }
@@ -315,15 +315,12 @@ pub mod platform_service_client {
             &mut self,
             request: impl tonic::IntoRequest<super::ClientIdentification>,
         ) -> Result<tonic::Response<super::PlatformInfo>, tonic::Status> {
-            self.inner
-                .ready()
-                .await
-                .map_err(|e| {
-                    tonic::Status::new(
-                        tonic::Code::Unknown,
-                        format!("Service was not ready: {}", e.into()),
-                    )
-                })?;
+            self.inner.ready().await.map_err(|e| {
+                tonic::Status::new(
+                    tonic::Code::Unknown,
+                    format!("Service was not ready: {}", e.into()),
+                )
+            })?;
             let codec = tonic::codec::ProstCodec::default();
             let path = http::uri::PathAndQuery::from_static(
                 "/io.axoniq.axonserver.grpc.control.PlatformService/GetPlatformServer",
@@ -333,27 +330,24 @@ pub mod platform_service_client {
         /// Opens an instruction stream to the Platform, allowing AxonServer to provide management instructions to the application
         pub async fn open_stream(
             &mut self,
-            request: impl tonic::IntoStreamingRequest<
-                Message = super::PlatformInboundInstruction,
-            >,
+            request: impl tonic::IntoStreamingRequest<Message = super::PlatformInboundInstruction>,
         ) -> Result<
             tonic::Response<tonic::codec::Streaming<super::PlatformOutboundInstruction>>,
             tonic::Status,
         > {
-            self.inner
-                .ready()
-                .await
-                .map_err(|e| {
-                    tonic::Status::new(
-                        tonic::Code::Unknown,
-                        format!("Service was not ready: {}", e.into()),
-                    )
-                })?;
+            self.inner.ready().await.map_err(|e| {
+                tonic::Status::new(
+                    tonic::Code::Unknown,
+                    format!("Service was not ready: {}", e.into()),
+                )
+            })?;
             let codec = tonic::codec::ProstCodec::default();
             let path = http::uri::PathAndQuery::from_static(
                 "/io.axoniq.axonserver.grpc.control.PlatformService/OpenStream",
             );
-            self.inner.streaming(request.into_streaming_request(), path, codec).await
+            self.inner
+                .streaming(request.into_streaming_request(), path, codec)
+                .await
         }
     }
 }
@@ -370,9 +364,7 @@ pub mod platform_service_server {
             request: tonic::Request<super::ClientIdentification>,
         ) -> Result<tonic::Response<super::PlatformInfo>, tonic::Status>;
         /// Server streaming response type for the OpenStream method.
-        type OpenStreamStream: futures_core::Stream<
-                Item = Result<super::PlatformOutboundInstruction, tonic::Status>,
-            >
+        type OpenStreamStream: futures_core::Stream<Item = Result<super::PlatformOutboundInstruction, tonic::Status>>
             + Send
             + 'static;
         /// Opens an instruction stream to the Platform, allowing AxonServer to provide management instructions to the application
@@ -405,10 +397,7 @@ pub mod platform_service_server {
                 send_compression_encodings: Default::default(),
             }
         }
-        pub fn with_interceptor<F>(
-            inner: T,
-            interceptor: F,
-        ) -> InterceptedService<Self, F>
+        pub fn with_interceptor<F>(inner: T, interceptor: F) -> InterceptedService<Self, F>
         where
             F: tonic::service::Interceptor,
         {
@@ -436,10 +425,7 @@ pub mod platform_service_server {
         type Response = http::Response<tonic::body::BoxBody>;
         type Error = std::convert::Infallible;
         type Future = BoxFuture<Self::Response, Self::Error>;
-        fn poll_ready(
-            &mut self,
-            _cx: &mut Context<'_>,
-        ) -> Poll<Result<(), Self::Error>> {
+        fn poll_ready(&mut self, _cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
             Poll::Ready(Ok(()))
         }
         fn call(&mut self, req: http::Request<B>) -> Self::Future {
@@ -448,23 +434,18 @@ pub mod platform_service_server {
                 "/io.axoniq.axonserver.grpc.control.PlatformService/GetPlatformServer" => {
                     #[allow(non_camel_case_types)]
                     struct GetPlatformServerSvc<T: PlatformService>(pub Arc<T>);
-                    impl<
-                        T: PlatformService,
-                    > tonic::server::UnaryService<super::ClientIdentification>
-                    for GetPlatformServerSvc<T> {
+                    impl<T: PlatformService>
+                        tonic::server::UnaryService<super::ClientIdentification>
+                        for GetPlatformServerSvc<T>
+                    {
                         type Response = super::PlatformInfo;
-                        type Future = BoxFuture<
-                            tonic::Response<Self::Response>,
-                            tonic::Status,
-                        >;
+                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::ClientIdentification>,
                         ) -> Self::Future {
                             let inner = self.0.clone();
-                            let fut = async move {
-                                (*inner).get_platform_server(request).await
-                            };
+                            let fut = async move { (*inner).get_platform_server(request).await };
                             Box::pin(fut)
                         }
                     }
@@ -475,11 +456,10 @@ pub mod platform_service_server {
                         let inner = inner.0;
                         let method = GetPlatformServerSvc(inner);
                         let codec = tonic::codec::ProstCodec::default();
-                        let mut grpc = tonic::server::Grpc::new(codec)
-                            .apply_compression_config(
-                                accept_compression_encodings,
-                                send_compression_encodings,
-                            );
+                        let mut grpc = tonic::server::Grpc::new(codec).apply_compression_config(
+                            accept_compression_encodings,
+                            send_compression_encodings,
+                        );
                         let res = grpc.unary(method, req).await;
                         Ok(res)
                     };
@@ -488,16 +468,14 @@ pub mod platform_service_server {
                 "/io.axoniq.axonserver.grpc.control.PlatformService/OpenStream" => {
                     #[allow(non_camel_case_types)]
                     struct OpenStreamSvc<T: PlatformService>(pub Arc<T>);
-                    impl<
-                        T: PlatformService,
-                    > tonic::server::StreamingService<super::PlatformInboundInstruction>
-                    for OpenStreamSvc<T> {
+                    impl<T: PlatformService>
+                        tonic::server::StreamingService<super::PlatformInboundInstruction>
+                        for OpenStreamSvc<T>
+                    {
                         type Response = super::PlatformOutboundInstruction;
                         type ResponseStream = T::OpenStreamStream;
-                        type Future = BoxFuture<
-                            tonic::Response<Self::ResponseStream>,
-                            tonic::Status,
-                        >;
+                        type Future =
+                            BoxFuture<tonic::Response<Self::ResponseStream>, tonic::Status>;
                         fn call(
                             &mut self,
                             request: tonic::Request<
@@ -516,28 +494,23 @@ pub mod platform_service_server {
                         let inner = inner.0;
                         let method = OpenStreamSvc(inner);
                         let codec = tonic::codec::ProstCodec::default();
-                        let mut grpc = tonic::server::Grpc::new(codec)
-                            .apply_compression_config(
-                                accept_compression_encodings,
-                                send_compression_encodings,
-                            );
+                        let mut grpc = tonic::server::Grpc::new(codec).apply_compression_config(
+                            accept_compression_encodings,
+                            send_compression_encodings,
+                        );
                         let res = grpc.streaming(method, req).await;
                         Ok(res)
                     };
                     Box::pin(fut)
                 }
-                _ => {
-                    Box::pin(async move {
-                        Ok(
-                            http::Response::builder()
-                                .status(200)
-                                .header("grpc-status", "12")
-                                .header("content-type", "application/grpc")
-                                .body(empty_body())
-                                .unwrap(),
-                        )
-                    })
-                }
+                _ => Box::pin(async move {
+                    Ok(http::Response::builder()
+                        .status(200)
+                        .header("grpc-status", "12")
+                        .header("content-type", "application/grpc")
+                        .body(empty_body())
+                        .unwrap())
+                }),
             }
         }
     }

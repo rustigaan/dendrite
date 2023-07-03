@@ -152,21 +152,25 @@ async fn submit_command(
 
 #[cfg(test)]
 mod tests {
-    use std::collections::HashSet;
-    use super::*;
     use super::super::AxonServerHandle;
-    use crate::axon_server::command::{CommandProviderInbound, CommandProviderOutbound, CommandResponse};
-    use crate::axon_server::command::command_service_server::{CommandService, CommandServiceServer};
+    use super::*;
+    use crate::axon_server::command::command_service_server::{
+        CommandService, CommandServiceServer,
+    };
+    use crate::axon_server::command::{
+        CommandProviderInbound, CommandProviderOutbound, CommandResponse,
+    };
+    use crate::axon_utils::WorkerRegistry;
     use futures_core::stream::Stream;
+    use std::collections::HashSet;
     use std::pin::Pin;
     use std::sync::{Arc, Mutex};
     use tokio::sync::mpsc;
     use tonic::{
         transport::{Endpoint, Server, Uri},
-        Request, Response, Status, Streaming
+        Request, Response, Status, Streaming,
     };
     use tower::service_fn;
-    use crate::axon_utils::WorkerRegistry;
 
     #[tokio::test]
     async fn test_submit_command() -> Result<()> {
@@ -186,14 +190,26 @@ mod tests {
 
         #[tonic::async_trait]
         impl CommandService for MockCommandServer {
-            type OpenStreamStream =
-            Pin<Box<dyn Stream<Item = Result<CommandProviderInbound, Status>> + Send + Sync + 'static>>;
+            type OpenStreamStream = Pin<
+                Box<
+                    dyn Stream<Item = Result<CommandProviderInbound, Status>>
+                        + Send
+                        + Sync
+                        + 'static,
+                >,
+            >;
 
-            async fn open_stream(&self, _request: Request<Streaming<CommandProviderOutbound>>) -> std::result::Result<Response<Self::OpenStreamStream>, Status> {
+            async fn open_stream(
+                &self,
+                _request: Request<Streaming<CommandProviderOutbound>>,
+            ) -> std::result::Result<Response<Self::OpenStreamStream>, Status> {
                 todo!()
             }
 
-            async fn dispatch(&self, request: Request<Command>) -> std::result::Result<Response<CommandResponse>, Status> {
+            async fn dispatch(
+                &self,
+                request: Request<Command>,
+            ) -> std::result::Result<Response<CommandResponse>, Status> {
                 let message_identifier = request.into_inner().message_identifier;
                 let mut ack = CommandResponse::default();
                 ack.message_identifier = message_identifier;
@@ -227,7 +243,7 @@ mod tests {
         let (tx, rx) = mpsc::channel(10);
         let registry = WorkerRegistry {
             workers: HashMap::new(),
-            notifications: rx
+            notifications: rx,
         };
 
         let axon_server_handle = AxonServerHandle {
@@ -235,7 +251,7 @@ mod tests {
             client_id: "test-client".to_string(),
             conn: channel,
             notify: tx,
-            registry: Arc::new(Mutex::new(registry))
+            registry: Arc::new(Mutex::new(registry)),
         };
 
         let payload_type = "test-payload";
