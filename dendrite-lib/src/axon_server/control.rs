@@ -1,18 +1,23 @@
 /// An instruction from Application Node to the AxonServer platform
 #[derive(serde::Serialize, serde::Deserialize)]
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct PlatformInboundInstruction {
     /// Instruction identifier. If this identifier is set, this instruction will be acknowledged via outbound stream
     #[prost(string, tag = "5")]
     pub instruction_id: ::prost::alloc::string::String,
     /// The actual instruction to send
-    #[prost(oneof = "platform_inbound_instruction::Request", tags = "1, 2, 3, 4, 6")]
+    #[prost(
+        oneof = "platform_inbound_instruction::Request",
+        tags = "1, 2, 3, 4, 6"
+    )]
     pub request: ::core::option::Option<platform_inbound_instruction::Request>,
 }
 /// Nested message and enum types in `PlatformInboundInstruction`.
 pub mod platform_inbound_instruction {
     /// The actual instruction to send
     #[derive(serde::Serialize, serde::Deserialize)]
+    #[allow(clippy::derive_partial_eq_without_eq)]
     #[derive(Clone, PartialEq, ::prost::Oneof)]
     pub enum Request {
         /// Information about the client being connected.
@@ -36,6 +41,7 @@ pub mod platform_inbound_instruction {
 }
 /// An instruction or information from the AxonServer Platform to the Application Node
 #[derive(serde::Serialize, serde::Deserialize)]
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct PlatformOutboundInstruction {
     /// Instruction identifier. If this identifier is set, this instruction will be acknowledged via inbound stream
@@ -52,6 +58,7 @@ pub struct PlatformOutboundInstruction {
 pub mod platform_outbound_instruction {
     /// The actual instruction or information
     #[derive(serde::Serialize, serde::Deserialize)]
+    #[allow(clippy::derive_partial_eq_without_eq)]
     #[derive(Clone, PartialEq, ::prost::Oneof)]
     pub enum Request {
         /// Information provided by AxonServer which provides information about the AxonServer node the application is connected with
@@ -90,10 +97,12 @@ pub mod platform_outbound_instruction {
 }
 /// Message send when AxonServer requests the client to re-establish its connection with the Platform
 #[derive(serde::Serialize, serde::Deserialize)]
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct RequestReconnect {}
 /// Message containing connection information of the node to Connect with
 #[derive(serde::Serialize, serde::Deserialize)]
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct PlatformInfo {
     /// The connection details of the node the client should connect with
@@ -106,6 +115,7 @@ pub struct PlatformInfo {
 }
 /// Message containing connection information for an AxonServer Node
 #[derive(serde::Serialize, serde::Deserialize)]
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct NodeInfo {
     /// The host name to use when connecting to this node
@@ -126,6 +136,7 @@ pub struct NodeInfo {
 }
 /// Message containing details about the Client Application
 #[derive(serde::Serialize, serde::Deserialize)]
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ClientIdentification {
     /// A unique identifier for this client instance. Is used to distinguish different instances of the same component
@@ -136,16 +147,15 @@ pub struct ClientIdentification {
     pub component_name: ::prost::alloc::string::String,
     /// Any tags associated with the client, which may provide hints and preferences for setting up connections
     #[prost(map = "string, string", tag = "3")]
-    pub tags: ::std::collections::HashMap<
-        ::prost::alloc::string::String,
-        ::prost::alloc::string::String,
-    >,
+    pub tags:
+        ::std::collections::HashMap<::prost::alloc::string::String, ::prost::alloc::string::String>,
     /// Axon framework version used by the client application instance
     #[prost(string, tag = "4")]
     pub version: ::prost::alloc::string::String,
 }
 /// Message containing information about the status of a Tracking Event Processor
 #[derive(serde::Serialize, serde::Deserialize)]
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct EventProcessorInfo {
     /// The logical name of this processor.
@@ -179,6 +189,7 @@ pub struct EventProcessorInfo {
 pub mod event_processor_info {
     /// Message containing information about the status of a Segment of a Tracking Event Processor
     #[derive(serde::Serialize, serde::Deserialize)]
+    #[allow(clippy::derive_partial_eq_without_eq)]
     #[derive(Clone, PartialEq, ::prost::Message)]
     pub struct SegmentStatus {
         /// The ID of the Segment for which the status is reported
@@ -203,6 +214,7 @@ pub mod event_processor_info {
 }
 /// Message providing reference to an Event Processor
 #[derive(serde::Serialize, serde::Deserialize)]
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct EventProcessorReference {
     /// The name of the Event Processor
@@ -211,6 +223,7 @@ pub struct EventProcessorReference {
 }
 /// Message providing reference to a Segment of an Event Processor
 #[derive(serde::Serialize, serde::Deserialize)]
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct EventProcessorSegmentReference {
     /// The name of the Event Processor
@@ -221,18 +234,19 @@ pub struct EventProcessorSegmentReference {
     pub segment_identifier: i32,
 }
 #[derive(serde::Serialize, serde::Deserialize)]
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct Heartbeat {}
 /// Generated client implementations.
 pub mod platform_service_client {
     #![allow(unused_variables, dead_code, missing_docs, clippy::let_unit_value)]
-    use tonic::codegen::*;
     use tonic::codegen::http::Uri;
+    use tonic::codegen::*;
     /// Service describing operations for connecting to the AxonServer platform.
     ///
-    ///Clients are expected to use this service on any of the Platform's Admin nodes to obtain connection information of the
-    ///node that it should set up the actual connection with. On that second node, the clients should open an instruction
-    ///stream (see OpenStream), so that AxonServer and the client application can exchange information and instructions.
+    /// Clients are expected to use this service on any of the Platform's Admin nodes to obtain connection information of the
+    /// node that it should set up the actual connection with. On that second node, the clients should open an instruction
+    /// stream (see OpenStream), so that AxonServer and the client application can exchange information and instructions.
     #[derive(Debug, Clone)]
     pub struct PlatformServiceClient<T> {
         inner: tonic::client::Grpc<T>,
@@ -276,9 +290,8 @@ pub mod platform_service_client {
                     <T as tonic::client::GrpcService<tonic::body::BoxBody>>::ResponseBody,
                 >,
             >,
-            <T as tonic::codegen::Service<
-                http::Request<tonic::body::BoxBody>,
-            >>::Error: Into<StdError> + Send + Sync,
+            <T as tonic::codegen::Service<http::Request<tonic::body::BoxBody>>>::Error:
+                Into<StdError> + Send + Sync,
         {
             PlatformServiceClient::new(InterceptedService::new(inner, interceptor))
         }
@@ -302,15 +315,12 @@ pub mod platform_service_client {
             &mut self,
             request: impl tonic::IntoRequest<super::ClientIdentification>,
         ) -> Result<tonic::Response<super::PlatformInfo>, tonic::Status> {
-            self.inner
-                .ready()
-                .await
-                .map_err(|e| {
-                    tonic::Status::new(
-                        tonic::Code::Unknown,
-                        format!("Service was not ready: {}", e.into()),
-                    )
-                })?;
+            self.inner.ready().await.map_err(|e| {
+                tonic::Status::new(
+                    tonic::Code::Unknown,
+                    format!("Service was not ready: {}", e.into()),
+                )
+            })?;
             let codec = tonic::codec::ProstCodec::default();
             let path = http::uri::PathAndQuery::from_static(
                 "/io.axoniq.axonserver.grpc.control.PlatformService/GetPlatformServer",
@@ -320,27 +330,24 @@ pub mod platform_service_client {
         /// Opens an instruction stream to the Platform, allowing AxonServer to provide management instructions to the application
         pub async fn open_stream(
             &mut self,
-            request: impl tonic::IntoStreamingRequest<
-                Message = super::PlatformInboundInstruction,
-            >,
+            request: impl tonic::IntoStreamingRequest<Message = super::PlatformInboundInstruction>,
         ) -> Result<
             tonic::Response<tonic::codec::Streaming<super::PlatformOutboundInstruction>>,
             tonic::Status,
         > {
-            self.inner
-                .ready()
-                .await
-                .map_err(|e| {
-                    tonic::Status::new(
-                        tonic::Code::Unknown,
-                        format!("Service was not ready: {}", e.into()),
-                    )
-                })?;
+            self.inner.ready().await.map_err(|e| {
+                tonic::Status::new(
+                    tonic::Code::Unknown,
+                    format!("Service was not ready: {}", e.into()),
+                )
+            })?;
             let codec = tonic::codec::ProstCodec::default();
             let path = http::uri::PathAndQuery::from_static(
                 "/io.axoniq.axonserver.grpc.control.PlatformService/OpenStream",
             );
-            self.inner.streaming(request.into_streaming_request(), path, codec).await
+            self.inner
+                .streaming(request.into_streaming_request(), path, codec)
+                .await
         }
     }
 }
@@ -348,7 +355,7 @@ pub mod platform_service_client {
 pub mod platform_service_server {
     #![allow(unused_variables, dead_code, missing_docs, clippy::let_unit_value)]
     use tonic::codegen::*;
-    ///Generated trait containing gRPC methods that should be implemented for use with PlatformServiceServer.
+    /// Generated trait containing gRPC methods that should be implemented for use with PlatformServiceServer.
     #[async_trait]
     pub trait PlatformService: Send + Sync + 'static {
         /// Obtains connection information for the Server that a Client should use for its connections.
@@ -356,10 +363,8 @@ pub mod platform_service_server {
             &self,
             request: tonic::Request<super::ClientIdentification>,
         ) -> Result<tonic::Response<super::PlatformInfo>, tonic::Status>;
-        ///Server streaming response type for the OpenStream method.
-        type OpenStreamStream: futures_core::Stream<
-                Item = Result<super::PlatformOutboundInstruction, tonic::Status>,
-            >
+        /// Server streaming response type for the OpenStream method.
+        type OpenStreamStream: futures_core::Stream<Item = Result<super::PlatformOutboundInstruction, tonic::Status>>
             + Send
             + 'static;
         /// Opens an instruction stream to the Platform, allowing AxonServer to provide management instructions to the application
@@ -370,9 +375,9 @@ pub mod platform_service_server {
     }
     /// Service describing operations for connecting to the AxonServer platform.
     ///
-    ///Clients are expected to use this service on any of the Platform's Admin nodes to obtain connection information of the
-    ///node that it should set up the actual connection with. On that second node, the clients should open an instruction
-    ///stream (see OpenStream), so that AxonServer and the client application can exchange information and instructions.
+    /// Clients are expected to use this service on any of the Platform's Admin nodes to obtain connection information of the
+    /// node that it should set up the actual connection with. On that second node, the clients should open an instruction
+    /// stream (see OpenStream), so that AxonServer and the client application can exchange information and instructions.
     #[derive(Debug)]
     pub struct PlatformServiceServer<T: PlatformService> {
         inner: _Inner<T>,
@@ -392,10 +397,7 @@ pub mod platform_service_server {
                 send_compression_encodings: Default::default(),
             }
         }
-        pub fn with_interceptor<F>(
-            inner: T,
-            interceptor: F,
-        ) -> InterceptedService<Self, F>
+        pub fn with_interceptor<F>(inner: T, interceptor: F) -> InterceptedService<Self, F>
         where
             F: tonic::service::Interceptor,
         {
@@ -423,10 +425,7 @@ pub mod platform_service_server {
         type Response = http::Response<tonic::body::BoxBody>;
         type Error = std::convert::Infallible;
         type Future = BoxFuture<Self::Response, Self::Error>;
-        fn poll_ready(
-            &mut self,
-            _cx: &mut Context<'_>,
-        ) -> Poll<Result<(), Self::Error>> {
+        fn poll_ready(&mut self, _cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
             Poll::Ready(Ok(()))
         }
         fn call(&mut self, req: http::Request<B>) -> Self::Future {
@@ -435,23 +434,18 @@ pub mod platform_service_server {
                 "/io.axoniq.axonserver.grpc.control.PlatformService/GetPlatformServer" => {
                     #[allow(non_camel_case_types)]
                     struct GetPlatformServerSvc<T: PlatformService>(pub Arc<T>);
-                    impl<
-                        T: PlatformService,
-                    > tonic::server::UnaryService<super::ClientIdentification>
-                    for GetPlatformServerSvc<T> {
+                    impl<T: PlatformService>
+                        tonic::server::UnaryService<super::ClientIdentification>
+                        for GetPlatformServerSvc<T>
+                    {
                         type Response = super::PlatformInfo;
-                        type Future = BoxFuture<
-                            tonic::Response<Self::Response>,
-                            tonic::Status,
-                        >;
+                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::ClientIdentification>,
                         ) -> Self::Future {
                             let inner = self.0.clone();
-                            let fut = async move {
-                                (*inner).get_platform_server(request).await
-                            };
+                            let fut = async move { (*inner).get_platform_server(request).await };
                             Box::pin(fut)
                         }
                     }
@@ -462,11 +456,10 @@ pub mod platform_service_server {
                         let inner = inner.0;
                         let method = GetPlatformServerSvc(inner);
                         let codec = tonic::codec::ProstCodec::default();
-                        let mut grpc = tonic::server::Grpc::new(codec)
-                            .apply_compression_config(
-                                accept_compression_encodings,
-                                send_compression_encodings,
-                            );
+                        let mut grpc = tonic::server::Grpc::new(codec).apply_compression_config(
+                            accept_compression_encodings,
+                            send_compression_encodings,
+                        );
                         let res = grpc.unary(method, req).await;
                         Ok(res)
                     };
@@ -475,16 +468,14 @@ pub mod platform_service_server {
                 "/io.axoniq.axonserver.grpc.control.PlatformService/OpenStream" => {
                     #[allow(non_camel_case_types)]
                     struct OpenStreamSvc<T: PlatformService>(pub Arc<T>);
-                    impl<
-                        T: PlatformService,
-                    > tonic::server::StreamingService<super::PlatformInboundInstruction>
-                    for OpenStreamSvc<T> {
+                    impl<T: PlatformService>
+                        tonic::server::StreamingService<super::PlatformInboundInstruction>
+                        for OpenStreamSvc<T>
+                    {
                         type Response = super::PlatformOutboundInstruction;
                         type ResponseStream = T::OpenStreamStream;
-                        type Future = BoxFuture<
-                            tonic::Response<Self::ResponseStream>,
-                            tonic::Status,
-                        >;
+                        type Future =
+                            BoxFuture<tonic::Response<Self::ResponseStream>, tonic::Status>;
                         fn call(
                             &mut self,
                             request: tonic::Request<
@@ -503,28 +494,23 @@ pub mod platform_service_server {
                         let inner = inner.0;
                         let method = OpenStreamSvc(inner);
                         let codec = tonic::codec::ProstCodec::default();
-                        let mut grpc = tonic::server::Grpc::new(codec)
-                            .apply_compression_config(
-                                accept_compression_encodings,
-                                send_compression_encodings,
-                            );
+                        let mut grpc = tonic::server::Grpc::new(codec).apply_compression_config(
+                            accept_compression_encodings,
+                            send_compression_encodings,
+                        );
                         let res = grpc.streaming(method, req).await;
                         Ok(res)
                     };
                     Box::pin(fut)
                 }
-                _ => {
-                    Box::pin(async move {
-                        Ok(
-                            http::Response::builder()
-                                .status(200)
-                                .header("grpc-status", "12")
-                                .header("content-type", "application/grpc")
-                                .body(empty_body())
-                                .unwrap(),
-                        )
-                    })
-                }
+                _ => Box::pin(async move {
+                    Ok(http::Response::builder()
+                        .status(200)
+                        .header("grpc-status", "12")
+                        .header("content-type", "application/grpc")
+                        .body(empty_body())
+                        .unwrap())
+                }),
             }
         }
     }

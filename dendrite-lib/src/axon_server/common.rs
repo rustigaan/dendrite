@@ -1,5 +1,6 @@
 /// Describes a serialized object
 #[derive(serde::Serialize, serde::Deserialize)]
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct SerializedObject {
     /// The type identifier of the serialized object.
@@ -14,6 +15,7 @@ pub struct SerializedObject {
 }
 /// The value of a MetaData entry.
 #[derive(serde::Serialize, serde::Deserialize)]
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct MetaDataValue {
     /// The data of the MetaData entry, depending on the type of data it contains.
@@ -24,6 +26,7 @@ pub struct MetaDataValue {
 pub mod meta_data_value {
     /// The data of the MetaData entry, depending on the type of data it contains.
     #[derive(serde::Serialize, serde::Deserialize)]
+    #[allow(clippy::derive_partial_eq_without_eq)]
     #[derive(Clone, PartialEq, ::prost::Oneof)]
     pub enum Data {
         /// The text value of the Meta Data entry.
@@ -45,6 +48,7 @@ pub mod meta_data_value {
 }
 /// An instruction for routing components when routing or processing a message.
 #[derive(serde::Serialize, serde::Deserialize)]
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ProcessingInstruction {
     /// The type of processing message.
@@ -56,6 +60,7 @@ pub struct ProcessingInstruction {
 }
 /// Message containing details of an error
 #[derive(serde::Serialize, serde::Deserialize)]
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ErrorMessage {
     /// A human readable message explaining the error
@@ -73,6 +78,7 @@ pub struct ErrorMessage {
 }
 /// Message used for Flow Control instruction, providing the counterpart with additional permits for sending messages
 #[derive(serde::Serialize, serde::Deserialize)]
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct FlowControl {
     /// The ClientID of the component providing additional permits
@@ -84,6 +90,7 @@ pub struct FlowControl {
 }
 /// Message describing instruction acknowledgement
 #[derive(serde::Serialize, serde::Deserialize)]
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct InstructionAck {
     /// The identifier of the instruction
@@ -98,6 +105,7 @@ pub struct InstructionAck {
 }
 /// Message describing the result of the execution of an instruction
 #[derive(serde::Serialize, serde::Deserialize)]
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct InstructionResult {
     /// The identifier of the instruction
@@ -111,8 +119,19 @@ pub struct InstructionResult {
     pub error: ::core::option::Option<ErrorMessage>,
 }
 /// An enumeration of possible keys for processing instructions.
-#[derive(serde::Serialize, serde::Deserialize)]
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
+#[derive(
+    serde::Serialize,
+    serde::Deserialize,
+    Clone,
+    Copy,
+    Debug,
+    PartialEq,
+    Eq,
+    Hash,
+    PartialOrd,
+    Ord,
+    ::prost::Enumeration,
+)]
 #[repr(i32)]
 pub enum ProcessingKey {
     /// key indicating that the attached value should be used for consistent routing.
@@ -137,10 +156,31 @@ impl ProcessingKey {
             ProcessingKey::NrOfResults => "NR_OF_RESULTS",
         }
     }
+    /// Creates an enum from field names used in the ProtoBuf definition.
+    pub fn from_str_name(value: &str) -> ::core::option::Option<Self> {
+        match value {
+            "ROUTING_KEY" => Some(Self::RoutingKey),
+            "PRIORITY" => Some(Self::Priority),
+            "TIMEOUT" => Some(Self::Timeout),
+            "NR_OF_RESULTS" => Some(Self::NrOfResults),
+            _ => None,
+        }
+    }
 }
 /// Defines status values for a scheduled task
-#[derive(serde::Serialize, serde::Deserialize)]
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
+#[derive(
+    serde::Serialize,
+    serde::Deserialize,
+    Clone,
+    Copy,
+    Debug,
+    PartialEq,
+    Eq,
+    Hash,
+    PartialOrd,
+    Ord,
+    ::prost::Enumeration,
+)]
 #[repr(i32)]
 pub enum TaskStatus {
     /// Task is scheduled for execution
@@ -166,6 +206,17 @@ impl TaskStatus {
             TaskStatus::Failed => "FAILED",
             TaskStatus::Running => "RUNNING",
             TaskStatus::Cancelled => "CANCELLED",
+        }
+    }
+    /// Creates an enum from field names used in the ProtoBuf definition.
+    pub fn from_str_name(value: &str) -> ::core::option::Option<Self> {
+        match value {
+            "SCHEDULED" => Some(Self::Scheduled),
+            "COMPLETED" => Some(Self::Completed),
+            "FAILED" => Some(Self::Failed),
+            "RUNNING" => Some(Self::Running),
+            "CANCELLED" => Some(Self::Cancelled),
+            _ => None,
         }
     }
 }

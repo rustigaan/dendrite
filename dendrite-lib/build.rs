@@ -1,4 +1,5 @@
 use std::fs;
+use std::process::Command;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     tonic_build::configure()
@@ -36,5 +37,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         "src/io.axoniq.axonserver.grpc.query.rs",
         "src/axon_server/query.rs",
     )?;
+    Command::new("cargo").args(&["fmt"]).output().ok();
     Ok(())
 }

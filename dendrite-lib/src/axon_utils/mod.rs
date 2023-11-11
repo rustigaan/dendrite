@@ -12,7 +12,6 @@
 //! * Query API — _accepts queries on a gRPC API and forwards them (again over gRPC to AxonServer)_
 //! * Query processor — _subscribes to queries, executes them against a query model and pass back the results_
 
-use crate::intellij_work_around::Debuggable;
 use anyhow::{anyhow, Result};
 use async_channel::{bounded, Receiver, Sender};
 use futures_util::FutureExt;
@@ -59,6 +58,8 @@ pub use event_query::query_events;
 pub use handler_registry::empty_handler_registry;
 pub use handler_registry::{HandleBuilder, HandlerRegistry, TheHandlerRegistry};
 pub use query_processor::{query_processor, QueryContext, QueryResult};
+
+pub type WorkerThread = Box<dyn FnOnce(AxonServerHandle, WorkerControl) -> PinFuture<()> + Sync>;
 
 struct WorkerRegistry {
     workers: HashMap<Uuid, WorkerHandle>,
@@ -184,41 +185,63 @@ impl Debug for WorkerHandle {
     }
 }
 
+pub trait IntoPinFuture {
+    fn into_pin_future(
+        self,
+        axon_serve_handle: &AxonServerHandle,
+        worker_control: WorkerControl,
+    ) -> PinFuture<()>;
+}
+
+impl<T, F> IntoPinFuture for &'static T
+where
+    T: Fn(AxonServerHandle, WorkerControl) -> F,
+    F: Future<Output = ()> + Send + 'static,
+{
+    fn into_pin_future(
+        self,
+        axon_serve_handle: &AxonServerHandle,
+        worker_control: WorkerControl,
+    ) -> PinFuture<()> {
+        Box::pin(self((*axon_serve_handle).clone(), worker_control))
+    }
+}
+
+impl<T, F> IntoPinFuture for Box<T>
+where
+    T: FnOnce(AxonServerHandle, WorkerControl) -> F,
+    F: Future<Output = ()> + Send + 'static,
+{
+    fn into_pin_future(
+        self,
+        axon_serve_handle: &AxonServerHandle,
+        worker_control: WorkerControl,
+    ) -> PinFuture<()> {
+        Box::pin(self((*axon_serve_handle).clone(), worker_control))
+    }
+}
+
+impl IntoPinFuture for WorkerThread {
+    fn into_pin_future(
+        self,
+        axon_serve_handle: &AxonServerHandle,
+        worker_control: WorkerControl,
+    ) -> PinFuture<()> {
+        (self)((*axon_serve_handle).clone(), worker_control).into()
+    }
+}
+
 impl AxonServerHandle {
-    pub fn spawn_ref<T, S: Into<String>>(
-        &self,
-        label: S,
-        task: &'static (dyn Fn(AxonServerHandle, WorkerControl) -> T),
-    ) -> Result<()>
+    #[deprecated]
+    pub fn spawn_ref<T, F, S: Into<String>>(&self, label: S, task: &'static T) -> Result<()>
     where
-        T: Future<Output = ()> + Send + 'static,
+        T: Fn(AxonServerHandle, WorkerControl) -> F,
+        F: Future<Output = ()> + Send + 'static,
     {
-        let label = label.into();
-        let notify = self.notify.clone();
-        let id = Uuid::new_v4();
-        let (tx, rx) = bounded(10);
-        let worker_control = WorkerControl {
-            control_channel: rx,
-            label: label.clone(),
-        };
-        let worker_future = (Box::new(task))((*self).clone(), worker_control);
-        let join_handle = spawn_worker(worker_future, notify, id).map_err(Into::into);
-        let handle = WorkerHandle {
-            id,
-            join_handle: Some(Box::pin(join_handle)),
-            control_channel: tx,
-            label,
-        };
-        let mut registry = self.registry.lock();
-        let registry = registry.as_mut().map_err(|e| anyhow!(e.to_string()))?;
-        registry.workers.insert(id, handle);
+        self.spawn(label, task)?;
         Ok(())
     }
-    pub fn spawn<S: Into<String>>(
-        &self,
-        label: S,
-        task: Box<dyn FnOnce(AxonServerHandle, WorkerControl) -> PinFuture<()>>,
-    ) -> Result<Uuid> {
+    pub fn spawn<S: Into<String>, T: IntoPinFuture>(&self, label: S, task: T) -> Result<Uuid> {
         let label = label.into();
         let notify = self.notify.clone();
         let id = Uuid::new_v4();
@@ -227,7 +250,7 @@ impl AxonServerHandle {
             control_channel: rx,
             label: label.clone(),
         };
-        let worker_future = (task)((*self).clone(), worker_control);
+        let worker_future = task.into_pin_future(self, worker_control);
         let join_handle = spawn_worker(worker_future, notify, id).map_err(Into::into);
         let handle = WorkerHandle {
             id,
@@ -264,6 +287,7 @@ pub trait AxonServerHandleTrait: Sync + AxonServerHandleAsyncTrait {
     fn client_id(&self) -> &str;
     fn display_name(&self) -> &str;
 }
+
 #[tonic::async_trait]
 pub trait AxonServerHandleAsyncTrait {
     async fn dispatch(&self, request: Command) -> Result<Response<CommandResponse>, Status>;
@@ -386,7 +410,7 @@ pub fn axon_serialize<T: Message>(type_name: &str, message: &T) -> Result<Serial
         revision: "".to_string(),
         data: buf,
     };
-    debug!("Encoded output: {:?}", Debuggable::from(&result));
+    debug!("Encoded output: {:?}", &result);
     Ok(result)
 }
 

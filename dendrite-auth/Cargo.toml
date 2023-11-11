@@ -1,6 +1,6 @@
 [package]
 name = "dendrite_auth"
-version = "0.9.0"
+version = "0.10.0"
 authors = ["Jeroen van Maanen"]
 edition = "2021"
 description = "Support for JWT based authentication / authorization in rustic-dendrite"
@@ -15,7 +15,7 @@ include = ["/src/**/*", "/proto/**/*", "/Cargo.*", "/build.rs", "/README.md", "/
 [dependencies]
 anyhow = "^1.0"
 async-channel = "^1.7"
-dendrite_lib = { version = "0.12.0", path = "../dendrite-lib" }
+dendrite_lib = { version = "0.13.0", path = "../dendrite-lib" }
 dendrite_macros = { version = "0.5.0", path = "../dendrite-macros" }
 jwt = "^0.16"
 lazy_static = "^1.4"

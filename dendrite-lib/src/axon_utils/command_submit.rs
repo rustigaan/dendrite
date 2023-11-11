@@ -162,6 +162,7 @@ mod tests {
     };
     use crate::axon_utils::WorkerRegistry;
     use futures_core::stream::Stream;
+    use std::collections::HashSet;
     use std::pin::Pin;
     use std::sync::{Arc, Mutex};
     use tonic::{
