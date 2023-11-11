@@ -358,7 +358,7 @@ dependencies = [
 
 [[package]]
 name = "dendrite"
-version = "0.12.0"
+version = "0.13.0"
 dependencies = [
  "dendrite_auth",
  "dendrite_elasticsearch",
