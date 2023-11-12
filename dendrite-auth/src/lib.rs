@@ -23,8 +23,9 @@ use jwt::{AlgorithmType, Error, Header, Token, VerifyWithKey};
 use lazy_static::lazy_static;
 use log::{debug, error, warn};
 use prost::Message;
+use rsa::pkcs1v15::Pkcs1v15Sign;
 use rsa::pkcs8::PrivateKeyInfo;
-use rsa::{PaddingScheme, PublicKey, RsaPrivateKey};
+use rsa::RsaPrivateKey;
 use serde_json::Value;
 use sha2::digest::FixedOutput;
 use sha2::{Digest, Sha256};
@@ -250,7 +251,7 @@ impl jwt::VerifyingAlgorithm for AuthPublicKey {
         sha2::Digest::update(&mut hasher, claims.as_bytes());
         let hashed: &[u8] = &hasher.finalize_fixed();
         debug!("Verify signature: {:?}: {:?}", signature, hashed);
-        let padding = PaddingScheme::new_pkcs1v15_sign::<Sha256>();
+        let padding = Pkcs1v15Sign::new::<Sha256>();
         self.0.verify(padding, hashed, signature).map_err(|e| {
             warn!("Error during verification of JWT: {:?}", e);
             Error::InvalidSignature
