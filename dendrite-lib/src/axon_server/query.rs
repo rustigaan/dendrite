@@ -336,7 +336,7 @@ pub mod query_service_client {
         /// Attempt to create a new client by connecting to a given endpoint.
         pub async fn connect<D>(dst: D) -> Result<Self, tonic::transport::Error>
         where
-            D: TryInto<tonic::transport::Endpoint>,
+            D: std::convert::TryInto<tonic::transport::Endpoint>,
             D::Error: Into<StdError>,
         {
             let conn = tonic::transport::Endpoint::new(dst)?.connect().await?;
@@ -391,27 +391,11 @@ pub mod query_service_client {
             self.inner = self.inner.accept_compressed(encoding);
             self
         }
-        /// Limits the maximum size of a decoded message.
-        ///
-        /// Default: `4MB`
-        #[must_use]
-        pub fn max_decoding_message_size(mut self, limit: usize) -> Self {
-            self.inner = self.inner.max_decoding_message_size(limit);
-            self
-        }
-        /// Limits the maximum size of an encoded message.
-        ///
-        /// Default: `usize::MAX`
-        #[must_use]
-        pub fn max_encoding_message_size(mut self, limit: usize) -> Self {
-            self.inner = self.inner.max_encoding_message_size(limit);
-            self
-        }
         /// Opens a Query- and Instruction stream to AxonServer.
         pub async fn open_stream(
             &mut self,
             request: impl tonic::IntoStreamingRequest<Message = super::QueryProviderOutbound>,
-        ) -> std::result::Result<
+        ) -> Result<
             tonic::Response<tonic::codec::Streaming<super::QueryProviderInbound>>,
             tonic::Status,
         > {
@@ -425,21 +409,16 @@ pub mod query_service_client {
             let path = http::uri::PathAndQuery::from_static(
                 "/io.axoniq.axonserver.grpc.query.QueryService/OpenStream",
             );
-            let mut req = request.into_streaming_request();
-            req.extensions_mut().insert(GrpcMethod::new(
-                "io.axoniq.axonserver.grpc.query.QueryService",
-                "OpenStream",
-            ));
-            self.inner.streaming(req, path, codec).await
+            self.inner
+                .streaming(request.into_streaming_request(), path, codec)
+                .await
         }
         /// Sends a point-to-point or scatter-gather Query
         pub async fn query(
             &mut self,
             request: impl tonic::IntoRequest<super::QueryRequest>,
-        ) -> std::result::Result<
-            tonic::Response<tonic::codec::Streaming<super::QueryResponse>>,
-            tonic::Status,
-        > {
+        ) -> Result<tonic::Response<tonic::codec::Streaming<super::QueryResponse>>, tonic::Status>
+        {
             self.inner.ready().await.map_err(|e| {
                 tonic::Status::new(
                     tonic::Code::Unknown,
@@ -450,18 +429,15 @@ pub mod query_service_client {
             let path = http::uri::PathAndQuery::from_static(
                 "/io.axoniq.axonserver.grpc.query.QueryService/Query",
             );
-            let mut req = request.into_request();
-            req.extensions_mut().insert(GrpcMethod::new(
-                "io.axoniq.axonserver.grpc.query.QueryService",
-                "Query",
-            ));
-            self.inner.server_streaming(req, path, codec).await
+            self.inner
+                .server_streaming(request.into_request(), path, codec)
+                .await
         }
         /// Opens a Subscription Query
         pub async fn subscription(
             &mut self,
             request: impl tonic::IntoStreamingRequest<Message = super::SubscriptionQueryRequest>,
-        ) -> std::result::Result<
+        ) -> Result<
             tonic::Response<tonic::codec::Streaming<super::SubscriptionQueryResponse>>,
             tonic::Status,
         > {
@@ -475,12 +451,9 @@ pub mod query_service_client {
             let path = http::uri::PathAndQuery::from_static(
                 "/io.axoniq.axonserver.grpc.query.QueryService/Subscription",
             );
-            let mut req = request.into_streaming_request();
-            req.extensions_mut().insert(GrpcMethod::new(
-                "io.axoniq.axonserver.grpc.query.QueryService",
-                "Subscription",
-            ));
-            self.inner.streaming(req, path, codec).await
+            self.inner
+                .streaming(request.into_streaming_request(), path, codec)
+                .await
         }
     }
 }
@@ -492,35 +465,32 @@ pub mod query_service_server {
     #[async_trait]
     pub trait QueryService: Send + Sync + 'static {
         /// Server streaming response type for the OpenStream method.
-        type OpenStreamStream: tonic::codegen::tokio_stream::Stream<
-                Item = std::result::Result<super::QueryProviderInbound, tonic::Status>,
-            > + Send
+        type OpenStreamStream: futures_core::Stream<Item = Result<super::QueryProviderInbound, tonic::Status>>
+            + Send
             + 'static;
         /// Opens a Query- and Instruction stream to AxonServer.
         async fn open_stream(
             &self,
             request: tonic::Request<tonic::Streaming<super::QueryProviderOutbound>>,
-        ) -> std::result::Result<tonic::Response<Self::OpenStreamStream>, tonic::Status>;
+        ) -> Result<tonic::Response<Self::OpenStreamStream>, tonic::Status>;
         /// Server streaming response type for the Query method.
-        type QueryStream: tonic::codegen::tokio_stream::Stream<
-                Item = std::result::Result<super::QueryResponse, tonic::Status>,
-            > + Send
+        type QueryStream: futures_core::Stream<Item = Result<super::QueryResponse, tonic::Status>>
+            + Send
             + 'static;
         /// Sends a point-to-point or scatter-gather Query
         async fn query(
             &self,
             request: tonic::Request<super::QueryRequest>,
-        ) -> std::result::Result<tonic::Response<Self::QueryStream>, tonic::Status>;
+        ) -> Result<tonic::Response<Self::QueryStream>, tonic::Status>;
         /// Server streaming response type for the Subscription method.
-        type SubscriptionStream: tonic::codegen::tokio_stream::Stream<
-                Item = std::result::Result<super::SubscriptionQueryResponse, tonic::Status>,
-            > + Send
+        type SubscriptionStream: futures_core::Stream<Item = Result<super::SubscriptionQueryResponse, tonic::Status>>
+            + Send
             + 'static;
         /// Opens a Subscription Query
         async fn subscription(
             &self,
             request: tonic::Request<tonic::Streaming<super::SubscriptionQueryRequest>>,
-        ) -> std::result::Result<tonic::Response<Self::SubscriptionStream>, tonic::Status>;
+        ) -> Result<tonic::Response<Self::SubscriptionStream>, tonic::Status>;
     }
     /// Service providing operations for the Query Messaging component of AxonServer
     #[derive(Debug)]
@@ -528,8 +498,6 @@ pub mod query_service_server {
         inner: _Inner<T>,
         accept_compression_encodings: EnabledCompressionEncodings,
         send_compression_encodings: EnabledCompressionEncodings,
-        max_decoding_message_size: Option<usize>,
-        max_encoding_message_size: Option<usize>,
     }
     struct _Inner<T>(Arc<T>);
     impl<T: QueryService> QueryServiceServer<T> {
@@ -542,8 +510,6 @@ pub mod query_service_server {
                 inner,
                 accept_compression_encodings: Default::default(),
                 send_compression_encodings: Default::default(),
-                max_decoding_message_size: None,
-                max_encoding_message_size: None,
             }
         }
         pub fn with_interceptor<F>(inner: T, interceptor: F) -> InterceptedService<Self, F>
@@ -564,22 +530,6 @@ pub mod query_service_server {
             self.send_compression_encodings.enable(encoding);
             self
         }
-        /// Limits the maximum size of a decoded message.
-        ///
-        /// Default: `4MB`
-        #[must_use]
-        pub fn max_decoding_message_size(mut self, limit: usize) -> Self {
-            self.max_decoding_message_size = Some(limit);
-            self
-        }
-        /// Limits the maximum size of an encoded message.
-        ///
-        /// Default: `usize::MAX`
-        #[must_use]
-        pub fn max_encoding_message_size(mut self, limit: usize) -> Self {
-            self.max_encoding_message_size = Some(limit);
-            self
-        }
     }
     impl<T, B> tonic::codegen::Service<http::Request<B>> for QueryServiceServer<T>
     where
@@ -590,10 +540,7 @@ pub mod query_service_server {
         type Response = http::Response<tonic::body::BoxBody>;
         type Error = std::convert::Infallible;
         type Future = BoxFuture<Self::Response, Self::Error>;
-        fn poll_ready(
-            &mut self,
-            _cx: &mut Context<'_>,
-        ) -> Poll<std::result::Result<(), Self::Error>> {
+        fn poll_ready(&mut self, _cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
             Poll::Ready(Ok(()))
         }
         fn call(&mut self, req: http::Request<B>) -> Self::Future {
@@ -614,31 +561,22 @@ pub mod query_service_server {
                             &mut self,
                             request: tonic::Request<tonic::Streaming<super::QueryProviderOutbound>>,
                         ) -> Self::Future {
-                            let inner = Arc::clone(&self.0);
-                            let fut = async move {
-                                <T as QueryService>::open_stream(&inner, request).await
-                            };
+                            let inner = self.0.clone();
+                            let fut = async move { (*inner).open_stream(request).await };
                             Box::pin(fut)
                         }
                     }
                     let accept_compression_encodings = self.accept_compression_encodings;
                     let send_compression_encodings = self.send_compression_encodings;
-                    let max_decoding_message_size = self.max_decoding_message_size;
-                    let max_encoding_message_size = self.max_encoding_message_size;
                     let inner = self.inner.clone();
                     let fut = async move {
                         let inner = inner.0;
                         let method = OpenStreamSvc(inner);
                         let codec = tonic::codec::ProstCodec::default();
-                        let mut grpc = tonic::server::Grpc::new(codec)
-                            .apply_compression_config(
-                                accept_compression_encodings,
-                                send_compression_encodings,
-                            )
-                            .apply_max_message_size_config(
-                                max_decoding_message_size,
-                                max_encoding_message_size,
-                            );
+                        let mut grpc = tonic::server::Grpc::new(codec).apply_compression_config(
+                            accept_compression_encodings,
+                            send_compression_encodings,
+                        );
                         let res = grpc.streaming(method, req).await;
                         Ok(res)
                     };
@@ -656,30 +594,22 @@ pub mod query_service_server {
                             &mut self,
                             request: tonic::Request<super::QueryRequest>,
                         ) -> Self::Future {
-                            let inner = Arc::clone(&self.0);
-                            let fut =
-                                async move { <T as QueryService>::query(&inner, request).await };
+                            let inner = self.0.clone();
+                            let fut = async move { (*inner).query(request).await };
                             Box::pin(fut)
                         }
                     }
                     let accept_compression_encodings = self.accept_compression_encodings;
                     let send_compression_encodings = self.send_compression_encodings;
-                    let max_decoding_message_size = self.max_decoding_message_size;
-                    let max_encoding_message_size = self.max_encoding_message_size;
                     let inner = self.inner.clone();
                     let fut = async move {
                         let inner = inner.0;
                         let method = QuerySvc(inner);
                         let codec = tonic::codec::ProstCodec::default();
-                        let mut grpc = tonic::server::Grpc::new(codec)
-                            .apply_compression_config(
-                                accept_compression_encodings,
-                                send_compression_encodings,
-                            )
-                            .apply_max_message_size_config(
-                                max_decoding_message_size,
-                                max_encoding_message_size,
-                            );
+                        let mut grpc = tonic::server::Grpc::new(codec).apply_compression_config(
+                            accept_compression_encodings,
+                            send_compression_encodings,
+                        );
                         let res = grpc.server_streaming(method, req).await;
                         Ok(res)
                     };
@@ -702,31 +632,22 @@ pub mod query_service_server {
                                 tonic::Streaming<super::SubscriptionQueryRequest>,
                             >,
                         ) -> Self::Future {
-                            let inner = Arc::clone(&self.0);
-                            let fut = async move {
-                                <T as QueryService>::subscription(&inner, request).await
-                            };
+                            let inner = self.0.clone();
+                            let fut = async move { (*inner).subscription(request).await };
                             Box::pin(fut)
                         }
                     }
                     let accept_compression_encodings = self.accept_compression_encodings;
                     let send_compression_encodings = self.send_compression_encodings;
-                    let max_decoding_message_size = self.max_decoding_message_size;
-                    let max_encoding_message_size = self.max_encoding_message_size;
                     let inner = self.inner.clone();
                     let fut = async move {
                         let inner = inner.0;
                         let method = SubscriptionSvc(inner);
                         let codec = tonic::codec::ProstCodec::default();
-                        let mut grpc = tonic::server::Grpc::new(codec)
-                            .apply_compression_config(
-                                accept_compression_encodings,
-                                send_compression_encodings,
-                            )
-                            .apply_max_message_size_config(
-                                max_decoding_message_size,
-                                max_encoding_message_size,
-                            );
+                        let mut grpc = tonic::server::Grpc::new(codec).apply_compression_config(
+                            accept_compression_encodings,
+                            send_compression_encodings,
+                        );
                         let res = grpc.streaming(method, req).await;
                         Ok(res)
                     };
@@ -750,14 +671,12 @@ pub mod query_service_server {
                 inner,
                 accept_compression_encodings: self.accept_compression_encodings,
                 send_compression_encodings: self.send_compression_encodings,
-                max_decoding_message_size: self.max_decoding_message_size,
-                max_encoding_message_size: self.max_encoding_message_size,
             }
         }
     }
     impl<T: QueryService> Clone for _Inner<T> {
         fn clone(&self) -> Self {
-            Self(Arc::clone(&self.0))
+            Self(self.0.clone())
         }
     }
     impl<T: std::fmt::Debug> std::fmt::Debug for _Inner<T> {

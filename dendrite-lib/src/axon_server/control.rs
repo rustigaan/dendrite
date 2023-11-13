@@ -255,7 +255,7 @@ pub mod platform_service_client {
         /// Attempt to create a new client by connecting to a given endpoint.
         pub async fn connect<D>(dst: D) -> Result<Self, tonic::transport::Error>
         where
-            D: TryInto<tonic::transport::Endpoint>,
+            D: std::convert::TryInto<tonic::transport::Endpoint>,
             D::Error: Into<StdError>,
         {
             let conn = tonic::transport::Endpoint::new(dst)?.connect().await?;
@@ -310,27 +310,11 @@ pub mod platform_service_client {
             self.inner = self.inner.accept_compressed(encoding);
             self
         }
-        /// Limits the maximum size of a decoded message.
-        ///
-        /// Default: `4MB`
-        #[must_use]
-        pub fn max_decoding_message_size(mut self, limit: usize) -> Self {
-            self.inner = self.inner.max_decoding_message_size(limit);
-            self
-        }
-        /// Limits the maximum size of an encoded message.
-        ///
-        /// Default: `usize::MAX`
-        #[must_use]
-        pub fn max_encoding_message_size(mut self, limit: usize) -> Self {
-            self.inner = self.inner.max_encoding_message_size(limit);
-            self
-        }
         /// Obtains connection information for the Server that a Client should use for its connections.
         pub async fn get_platform_server(
             &mut self,
             request: impl tonic::IntoRequest<super::ClientIdentification>,
-        ) -> std::result::Result<tonic::Response<super::PlatformInfo>, tonic::Status> {
+        ) -> Result<tonic::Response<super::PlatformInfo>, tonic::Status> {
             self.inner.ready().await.map_err(|e| {
                 tonic::Status::new(
                     tonic::Code::Unknown,
@@ -341,18 +325,13 @@ pub mod platform_service_client {
             let path = http::uri::PathAndQuery::from_static(
                 "/io.axoniq.axonserver.grpc.control.PlatformService/GetPlatformServer",
             );
-            let mut req = request.into_request();
-            req.extensions_mut().insert(GrpcMethod::new(
-                "io.axoniq.axonserver.grpc.control.PlatformService",
-                "GetPlatformServer",
-            ));
-            self.inner.unary(req, path, codec).await
+            self.inner.unary(request.into_request(), path, codec).await
         }
         /// Opens an instruction stream to the Platform, allowing AxonServer to provide management instructions to the application
         pub async fn open_stream(
             &mut self,
             request: impl tonic::IntoStreamingRequest<Message = super::PlatformInboundInstruction>,
-        ) -> std::result::Result<
+        ) -> Result<
             tonic::Response<tonic::codec::Streaming<super::PlatformOutboundInstruction>>,
             tonic::Status,
         > {
@@ -366,12 +345,9 @@ pub mod platform_service_client {
             let path = http::uri::PathAndQuery::from_static(
                 "/io.axoniq.axonserver.grpc.control.PlatformService/OpenStream",
             );
-            let mut req = request.into_streaming_request();
-            req.extensions_mut().insert(GrpcMethod::new(
-                "io.axoniq.axonserver.grpc.control.PlatformService",
-                "OpenStream",
-            ));
-            self.inner.streaming(req, path, codec).await
+            self.inner
+                .streaming(request.into_streaming_request(), path, codec)
+                .await
         }
     }
 }
@@ -386,17 +362,16 @@ pub mod platform_service_server {
         async fn get_platform_server(
             &self,
             request: tonic::Request<super::ClientIdentification>,
-        ) -> std::result::Result<tonic::Response<super::PlatformInfo>, tonic::Status>;
+        ) -> Result<tonic::Response<super::PlatformInfo>, tonic::Status>;
         /// Server streaming response type for the OpenStream method.
-        type OpenStreamStream: tonic::codegen::tokio_stream::Stream<
-                Item = std::result::Result<super::PlatformOutboundInstruction, tonic::Status>,
-            > + Send
+        type OpenStreamStream: futures_core::Stream<Item = Result<super::PlatformOutboundInstruction, tonic::Status>>
+            + Send
             + 'static;
         /// Opens an instruction stream to the Platform, allowing AxonServer to provide management instructions to the application
         async fn open_stream(
             &self,
             request: tonic::Request<tonic::Streaming<super::PlatformInboundInstruction>>,
-        ) -> std::result::Result<tonic::Response<Self::OpenStreamStream>, tonic::Status>;
+        ) -> Result<tonic::Response<Self::OpenStreamStream>, tonic::Status>;
     }
     /// Service describing operations for connecting to the AxonServer platform.
     ///
@@ -408,8 +383,6 @@ pub mod platform_service_server {
         inner: _Inner<T>,
         accept_compression_encodings: EnabledCompressionEncodings,
         send_compression_encodings: EnabledCompressionEncodings,
-        max_decoding_message_size: Option<usize>,
-        max_encoding_message_size: Option<usize>,
     }
     struct _Inner<T>(Arc<T>);
     impl<T: PlatformService> PlatformServiceServer<T> {
@@ -422,8 +395,6 @@ pub mod platform_service_server {
                 inner,
                 accept_compression_encodings: Default::default(),
                 send_compression_encodings: Default::default(),
-                max_decoding_message_size: None,
-                max_encoding_message_size: None,
             }
         }
         pub fn with_interceptor<F>(inner: T, interceptor: F) -> InterceptedService<Self, F>
@@ -444,22 +415,6 @@ pub mod platform_service_server {
             self.send_compression_encodings.enable(encoding);
             self
         }
-        /// Limits the maximum size of a decoded message.
-        ///
-        /// Default: `4MB`
-        #[must_use]
-        pub fn max_decoding_message_size(mut self, limit: usize) -> Self {
-            self.max_decoding_message_size = Some(limit);
-            self
-        }
-        /// Limits the maximum size of an encoded message.
-        ///
-        /// Default: `usize::MAX`
-        #[must_use]
-        pub fn max_encoding_message_size(mut self, limit: usize) -> Self {
-            self.max_encoding_message_size = Some(limit);
-            self
-        }
     }
     impl<T, B> tonic::codegen::Service<http::Request<B>> for PlatformServiceServer<T>
     where
@@ -470,10 +425,7 @@ pub mod platform_service_server {
         type Response = http::Response<tonic::body::BoxBody>;
         type Error = std::convert::Infallible;
         type Future = BoxFuture<Self::Response, Self::Error>;
-        fn poll_ready(
-            &mut self,
-            _cx: &mut Context<'_>,
-        ) -> Poll<std::result::Result<(), Self::Error>> {
+        fn poll_ready(&mut self, _cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
             Poll::Ready(Ok(()))
         }
         fn call(&mut self, req: http::Request<B>) -> Self::Future {
@@ -492,31 +444,22 @@ pub mod platform_service_server {
                             &mut self,
                             request: tonic::Request<super::ClientIdentification>,
                         ) -> Self::Future {
-                            let inner = Arc::clone(&self.0);
-                            let fut = async move {
-                                <T as PlatformService>::get_platform_server(&inner, request).await
-                            };
+                            let inner = self.0.clone();
+                            let fut = async move { (*inner).get_platform_server(request).await };
                             Box::pin(fut)
                         }
                     }
                     let accept_compression_encodings = self.accept_compression_encodings;
                     let send_compression_encodings = self.send_compression_encodings;
-                    let max_decoding_message_size = self.max_decoding_message_size;
-                    let max_encoding_message_size = self.max_encoding_message_size;
                     let inner = self.inner.clone();
                     let fut = async move {
                         let inner = inner.0;
                         let method = GetPlatformServerSvc(inner);
                         let codec = tonic::codec::ProstCodec::default();
-                        let mut grpc = tonic::server::Grpc::new(codec)
-                            .apply_compression_config(
-                                accept_compression_encodings,
-                                send_compression_encodings,
-                            )
-                            .apply_max_message_size_config(
-                                max_decoding_message_size,
-                                max_encoding_message_size,
-                            );
+                        let mut grpc = tonic::server::Grpc::new(codec).apply_compression_config(
+                            accept_compression_encodings,
+                            send_compression_encodings,
+                        );
                         let res = grpc.unary(method, req).await;
                         Ok(res)
                     };
@@ -539,31 +482,22 @@ pub mod platform_service_server {
                                 tonic::Streaming<super::PlatformInboundInstruction>,
                             >,
                         ) -> Self::Future {
-                            let inner = Arc::clone(&self.0);
-                            let fut = async move {
-                                <T as PlatformService>::open_stream(&inner, request).await
-                            };
+                            let inner = self.0.clone();
+                            let fut = async move { (*inner).open_stream(request).await };
                             Box::pin(fut)
                         }
                     }
                     let accept_compression_encodings = self.accept_compression_encodings;
                     let send_compression_encodings = self.send_compression_encodings;
-                    let max_decoding_message_size = self.max_decoding_message_size;
-                    let max_encoding_message_size = self.max_encoding_message_size;
                     let inner = self.inner.clone();
                     let fut = async move {
                         let inner = inner.0;
                         let method = OpenStreamSvc(inner);
                         let codec = tonic::codec::ProstCodec::default();
-                        let mut grpc = tonic::server::Grpc::new(codec)
-                            .apply_compression_config(
-                                accept_compression_encodings,
-                                send_compression_encodings,
-                            )
-                            .apply_max_message_size_config(
-                                max_decoding_message_size,
-                                max_encoding_message_size,
-                            );
+                        let mut grpc = tonic::server::Grpc::new(codec).apply_compression_config(
+                            accept_compression_encodings,
+                            send_compression_encodings,
+                        );
                         let res = grpc.streaming(method, req).await;
                         Ok(res)
                     };
@@ -587,14 +521,12 @@ pub mod platform_service_server {
                 inner,
                 accept_compression_encodings: self.accept_compression_encodings,
                 send_compression_encodings: self.send_compression_encodings,
-                max_decoding_message_size: self.max_decoding_message_size,
-                max_encoding_message_size: self.max_encoding_message_size,
             }
         }
     }
     impl<T: PlatformService> Clone for _Inner<T> {
         fn clone(&self) -> Self {
-            Self(Arc::clone(&self.0))
+            Self(self.0.clone())
         }
     }
     impl<T: std::fmt::Debug> std::fmt::Debug for _Inner<T> {
