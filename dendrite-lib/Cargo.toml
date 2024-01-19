@@ -1,6 +1,6 @@
 [package]
 name = "dendrite_lib"
-version = "0.13.0"
+version = "0.14.0"
 authors = ["Jeroen van Maanen"]
 edition = "2021"
 description = "Event Sourcing and CQRS in Rust with AxonServer."
@@ -24,14 +24,14 @@ futures-core = "^0.3"
 futures-util = "^0.3"
 log = "^0.4"
 lru = "^0.12"
-mockall = "^0.11"
-prost = "^0.11"
+mockall = "^0.12"
+prost = "^0.12"
 regex = "^1.5"
 serde = { version = "~1", features = ["derive"] }
 tokio = { version = "^1.0", features = ["macros", "time", "signal"] }
-tonic = "^0.8"
+tonic = "^0.10"
 tower = "^0.4"
 uuid = { version = "^1.2", features = ["v4"] }
 
 [build-dependencies]
-tonic-build = "^0.8"
+tonic-build = "^0.10"
