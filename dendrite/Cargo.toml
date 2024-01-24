@@ -1,6 +1,6 @@
 [package]
 name = "dendrite"
-version = "0.14.0"
+version = "0.14.1"
 authors = ["Jeroen van Maanen"]
 edition = "2021"
 description = "Event Sourcing and CQRS in Rust with AxonServer."
@@ -20,8 +20,8 @@ mongodb = ["dendrite_mongodb"]
 all = ["default", "auth", "elasticsearch", "mongodb"]
 
 [dependencies]
-dendrite_auth = { version = "0.11.0", path = "../dendrite-auth", optional = true }
-dendrite_lib = { version = "0.14.0", path = "../dendrite-lib" }
+dendrite_auth = { version = "0.11.1", path = "../dendrite-auth", optional = true }
+dendrite_lib = { version = "0.14.1", path = "../dendrite-lib" }
 dendrite_macros = { version = "0.5.0", path = "../dendrite-macros", optional = true }
-dendrite_elasticsearch = { version = "0.6.0", path = "../dendrite-elasticsearch", optional = true }
-dendrite_mongodb = { version = "0.2.0", path = "../dendrite-mongodb", optional = true }
+dendrite_elasticsearch = { version = "0.6.1", path = "../dendrite-elasticsearch", optional = true }
+dendrite_mongodb = { version = "0.2.1", path = "../dendrite-mongodb", optional = true }
