@@ -1,9 +1,5 @@
-use std::fs;
-use std::process::Command;
-
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     tonic_build::configure()
-        .out_dir("src")
         .type_attribute(".", "#[derive(serde::Serialize, serde::Deserialize)]")
         .compile(
             &[
@@ -15,28 +11,5 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             ],
             &["proto/axon_server"],
         )?;
-    fs::remove_file("src/google.protobuf.rs").ok();
-    fs::create_dir_all("src/axon_server").ok();
-    fs::rename(
-        "src/io.axoniq.axonserver.grpc.common.rs",
-        "src/axon_server/common.rs",
-    )?;
-    fs::rename(
-        "src/io.axoniq.axonserver.grpc.command.rs",
-        "src/axon_server/command.rs",
-    )?;
-    fs::rename(
-        "src/io.axoniq.axonserver.grpc.control.rs",
-        "src/axon_server/control.rs",
-    )?;
-    fs::rename(
-        "src/io.axoniq.axonserver.grpc.event.rs",
-        "src/axon_server/event.rs",
-    )?;
-    fs::rename(
-        "src/io.axoniq.axonserver.grpc.query.rs",
-        "src/axon_server/query.rs",
-    )?;
-    Command::new("cargo").args(&["fmt"]).output().ok();
     Ok(())
 }

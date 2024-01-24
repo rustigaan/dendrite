@@ -2,7 +2,9 @@ pub mod dendrite {
     pub use ::dendrite_lib::*;
 }
 
-pub mod dendrite_config;
+pub mod dendrite_config {
+    tonic::include_proto!("dendrite_config");
+}
 
 use crate::dendrite_config::{
     CredentialsAddedEvent, CredentialsRemovedEvent, KeyManagerAddedEvent, KeyManagerRemovedEvent,

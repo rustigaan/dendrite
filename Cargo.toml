@@ -1,10 +1,11 @@
 [workspace]
+resolver = "2"
 
 members = [
-  "dendrite",
-  "dendrite-lib",
-  "dendrite-auth",
-  "dendrite-macros",
-  "dendrite-elasticsearch",
-  "dendrite-mongodb",
+    "dendrite",
+    "dendrite-lib",
+    "dendrite-auth",
+    "dendrite-macros",
+    "dendrite-elasticsearch",
+    "dendrite-mongodb",
 ]
